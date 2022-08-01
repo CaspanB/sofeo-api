@@ -69,11 +69,22 @@ const deleteArea = (request, response) => {
 }
 
 const getAllGenders = (request, response) => {
-    
+    pool.query('SELECT * FROM gender ORDER BY gender_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })    
 }
 
 const getGender = (request, response) => {
-    
+    const id = request.params.genderId;
+    pool.query('SELECT * FROM gender WHERE gender_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createGender = (request, response) => {
@@ -97,11 +108,22 @@ const deleteGender = (request, response) => {
 }
 
 const getAllTeams = (request, response) => {
-    
+    pool.query('SELECT * FROM team ORDER BY team_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getTeam = (request, response) => {
-    
+    const id = request.params.teamId;
+    pool.query('SELECT * FROM team WHERE team_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows);
+    })
 }
 
 const createTeam = (request, response) => {
@@ -125,11 +147,22 @@ const deleteTeam = (request, response) => {
 }
 
 const getAllChannels = (request, response) => {
-    
+    pool.query('SELECT * FROM channel ORDER BY channel_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    }) 
 }
 
 const getChannel = (request, response) => {
-    
+    const id = request.params.channelId;
+    pool.query('SELECT * FROM channel WHERE channel_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createChannel = (request, response) => {
@@ -153,11 +186,22 @@ const deleteChannel = (request, response) => {
 }
 
 const getAllStatuses = (request, response) => {
-    
+    pool.query('SELECT * FROM status ORDER BY status_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    }) 
 }
 
 const getStatus = (request, response) => {
-    
+    const id = request.params.statusId
+    pool.query('SELECT * FROM status WHERE status_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createStatus = (request, response) => {
@@ -181,11 +225,22 @@ const deleteStatus = (request, response) => {
 }
 
 const getAllTypes = (request, response) => {
-    
+    pool.query('SELECT * FROM type ORDER BY type_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    }) 
 }
 
 const getType = (request, response) => {
-    
+    const id = request.params.typeId
+    pool.query('SELECT * FROM type WHERE type_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createType = (request, response) => {
@@ -209,15 +264,26 @@ const deleteType = (request, response) => {
 }
 
 const getAllClasses = (request, response) => {
-    
+    pool.query('SELECT * FROM class ORDER BY class,grade ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })    
 }
 
 const getClass = (request, response) => {
-    
+    const values = new Array(request.params.classId, request.params.grade);
+    pool.query('SELECT * FROM class WHERE class = $1 AND grade ? $2', values, (error, results) => {
+        if(error){
+            throw error
+        } 
+        response.status(200).json(results.rows)
+    })
 }
 
 const createClass = (request, response) => {
-    
+ 
 }
 
 const editAllClasses = (request, response) => {
@@ -237,11 +303,22 @@ const deleteClass = (request, response) => {
 }
 
 const getAllStands = (request, response) => {
-    
+    pool.query('SELECT * FROM stand ORDER BY stand_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })    
 }
 
 const getStand = (request, response) => {
-    
+    const id = request.params.standId 
+    pool.query('SELECT * FROM stand WHERE stand_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createStand = (request, response) => {
@@ -265,11 +342,22 @@ const deleteStand = (request, response) => {
 }
 
 const getAllStoragelocations = (request, response) => {
-    
+    pool.query('SELECT * FROM storagelocation ORDER BY sl_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getStoragelocation = (request, response) => {
-    
+    const id = request.params.storagelocationId
+    pool.query('SELECT * FROM storagelocation WHERE sl_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createStoragelocation = (request, response) => {
@@ -293,11 +381,22 @@ const deleteStoragelocation = (request, response) => {
 }
 
 const getAllUsers = (request, response) => {
-    
+    pool.query('SELECT user_id, loginname, area_id FROM users ORDER BY user_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getUser = (request, response) => {
-    
+    const id = request.params.userId
+    pool.query('SELECT user_id, loginname, area_id FROM users WHERE user_id LIKE $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createUser = (request, response) => {
@@ -321,11 +420,22 @@ const deleteUser = (request, response) => {
 }
 
 const getAllHelpers = (request, response) => {
-    
+    pool.query('SELECT * FROM helper ORDER BY helper_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getHelper = (request, response) => {
-    
+    const id = request.params.helperId
+    pool.query('SELECT * FROM helper WHERE helper_id LIKE $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createHelper = (request, response) => {
@@ -353,11 +463,22 @@ const changeHelperStatus = (request, response) => {
 }
 
 const getAllTeachers = (request, response) => {
-    
+    pool.query('SELECT * FROM teacher ORDER BY abbreviation ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getTeacher = (request, response) => {
-    
+    const id = request.params.teacherId
+    pool.query('SELECT * FROM teacher WHERE abbreviation LIKE $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createTeacher = (request, response) => {
@@ -381,11 +502,22 @@ const deleteTeacher = (request, response) => {
 }
 
 const getAllAssignments = (request, response) => {
-    
+    pool.query('SELECT * FROM assignment ORDER BY assignment_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getAssignment = (request, response) => {
-    
+    const id = request.params.assignmentId
+    pool.query('SELECT * FROM assignment WHERE assignment_id = $1', [id], (error, results) => {
+        if(error){
+            throw(error)
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createAssignment = (request, response) => {
@@ -409,11 +541,22 @@ const deleteAssignment = (request, response) => {
 }
 
 const getAllWalkietalkies = (request, response) => {
-    
+    pool.query('SELECT * FROM walkietalkie ORDER BY wt_id ASC', (error, result) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getWalkietalkie = (request, response) => {
-    
+    const id = request.params.walkietalkieId
+    pool.query('SELECT * FROM walkietalkie WHERE wt_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createWalkietalkie = (request, response) => {
@@ -441,11 +584,22 @@ const changeWalkietalkieStatus = (request, response) => {
 }
 
 const getAllClassrepresentatives = (request, response) => {
-    
+    pool.query('SELECT * FROM classrepresentative ORDER BY classrep_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getClassrepresentative = (request, response) => {
-    
+    const id = request.params.classrepresentativeId
+    pool.query('SELECT * FROM classrepresentative WHERE classrep_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createClassrepresentative = (request, response) => {
@@ -469,11 +623,22 @@ const deleteClassrepresentative = (request, response) => {
 }
 
 const getAllMaterials = (request, response) => {
-    
+    pool.query('SELECT * FROM material ORDER BY material_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const getMaterial = (request, response) => {
-    
+    const id = request.params.materialId
+    pool.query('SELECT * FROM material WHERE material_id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
 }
 
 const createMaterial = (request, response) => {

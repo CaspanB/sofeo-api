@@ -263,7 +263,7 @@ app.delete('/type', db.deleteAllTypes) //Delete all types
 app.delete('/type/:typeId', db.deleteType) //Delete specific type
 
 app.get('/class', db.getAllClasses) //Get all classes
-app.get('/class/:classId', db.getClass) //Get specific class
+app.get('/class/:classId-:grade', db.getClass) //Get specific class
 app.post('/class', db.createClass) //Create class
 app.put('/class', db.editAllClasses) //Edit all classes
 app.put('/class/:classId', db.editClass) //Edit specific class
