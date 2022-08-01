@@ -454,23 +454,73 @@ const getStatus = (request, response) => {
 }
 
 const createStatus = (request, response) => {
-    
+    const { name } = request.body;
+    let id = 0;
+    pool.query('SELECT status_id FROM status ORDER BY status_id DESC', (error, results) => {
+        if(error){
+            throw error
+        }
+        id = results.rows[0].status_id;
+    })
+
+    const query = 'INSERT INTO status (status_id, name) VALUES ? RETURNING *';
+    pool.query(query, [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Created status with id $1 and name $2', [id, name]);
+    })
 }
 
 const editAllStatuses = (request, response) => {
-    
+    const { name } = request.body;
+    let values = new Array();
+    pool.query('SELECT status_id FROM status ORDER BY status_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        for (let index = 0; index < results.rows.length; index++) {
+            const element = results.rows[index].status_id;
+            values[index] = new Array(element, name);
+        }
+    })
+
+    pool.query('INSERT INTO status (status_id, name) VALUES ? RETURNING *', values, (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of all statuses to $1', [name])
+    })
 }
 
 const editStatus = (request, response) => {
-    
+    const id = request.params.statusId;
+    const { name } = request.body;
+    pool.query('INSERT INTO status (status_id, name) VALUES ? RETURNING *', [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of status with id $1 to $2', [id, name]);
+    })
 }
 
 const deleteAllStatuses = (request, response) => {
-    
+    pool.query('DELETE FROM status RETURNING *', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted all statuses')
+    })
 }
 
 const deleteStatus = (request, response) => {
-    
+    const id = request.params.statusId;
+    pool.query('DELETE FROM status WHERE status_id = $1 RETURNING *', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted status with id $1', [id])
+    })
 }
 
 const getAllTypes = (request, response) => {
