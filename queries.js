@@ -317,23 +317,121 @@ const getChannel = (request, response) => {
 }
 
 const createChannel = (request, response) => {
-    
+    const { name, frequency } = request.body;
+    let id = 0;
+    pool.query('SELECT channel_id FROM channel ORDER BY channel_id DESC', (error, results) => {
+        if(error){
+            throw error
+        }
+        id = results.rows[0].channel_id;
+    })
+
+    const query = 'INSERT INTO channel (channel_id, name, frequency) VALUES ? RETURNING *';
+    pool.query(query, [id, name, frequency], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Created channel with id $1 and name $2 and frequency $3', [id, name, frequency]);
+    })
 }
 
 const editAllChannels = (request, response) => {
-    
+    const { name, frequency } = request.body;
+    const nulls = new Array(isNull(frequency, false), isNull(name, true))
+    let values = new Array();
+
+    pool.query('SELECT channel_id FROM channel ORDER BY channel_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        if(nulls[0]){ //Frequency is null
+            for (let index = 0; index < results.rows.length; index++) {
+                const element = results.rows[index].channel_id;
+                values[index] = new Array(element, name);
+            }
+        }else if(nulls[1]){ //Name is null
+            for (let index = 0; index < results.rows.length; index++) {
+                const element = results.rows[index].channel_id;
+                values[index] = new Array(element, frequency);
+            }
+        }else{
+            for (let index = 0; index < results.rows.length; index++) {
+                const element = results.rows[index].channel_id;
+                values[index] = new Array(element, name, frequency);
+            }
+        }
+    })
+
+    if(nulls[0]){ //Frequency is null
+        pool.query('INSERT INTO channel (channel_id, name) VALUES ? RETURNING *', values, (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed name of all channels to $1', [name])
+        })
+    }else if(nulls[1]){ //Name is null
+        pool.query('INSERT INTO channel (channel_id, frequency) VALUES ? RETURNING *', values, (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed frequency of all channels to $1', [frequency])
+        })
+    }else{
+        pool.query('INSERT INTO channel (channel_id, name, frequency) VALUES ? RETURNING *', values, (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed name of all channels to $1 and frequency to $2', [name, frequency])
+        })
+    }
 }
 
 const editChannel = (request, response) => {
-    
+    const id = request.params.channelId;
+    const { name, frequency } = request.body;
+    const nulls = new Array(isNull(frequency, false), isNull(name, true));
+
+    if(nulls[0]){ //Frequency is null
+        pool.query('INSERT INTO channel (channel_id, name) VALUES ? RETURNING *', [id, name], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed name of channel with id $1 to $2', [id, name]);
+        })
+    }else if(nulls[1]){ //Name is null
+        pool.query('INSERT INTO channel(channel_id, frequency) VALUES ? RETURNING *', [id, frequency], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed frequency of channel with id $1 to $2', [id, frequency]);
+        })
+    }else{
+        pool.query('INSERT INTO channel (channel_id, name, frequency) VALUES ? RETURNING *', [id, name, frequency], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed name of channel with id $1 to $2 and frequency to $3', [id, name, frequency]);
+        })
+    }
 }
 
 const deleteAllChannels = (request, response) => {
-    
+    pool.query('DELETE FROM channel RETURNING *', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted all channels')
+    })
 }
 
 const deleteChannel = (request, response) => {
-    
+    const id = request.params.channelId;
+    pool.query('DELETE FROM channel WHERE channel_id = $1 RETURNING *', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted channel with id $1', [id])
+    })
 }
 
 const getAllStatuses = (request, response) => {
