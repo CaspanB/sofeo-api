@@ -543,23 +543,73 @@ const getType = (request, response) => {
 }
 
 const createType = (request, response) => {
-    
+    const { name } = request.body;
+    let id = 0;
+    pool.query('SELECT type_id FROM type ORDER BY type_id DESC', (error, results) => {
+        if(error){
+            throw error
+        }
+        id = results.rows[0].type_id;
+    })
+
+    const query = 'INSERT INTO type (type_id, name) VALUES ? RETURNING *';
+    pool.query(query, [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Created type with id $1 and name $2', [id, name]);
+    })
 }
 
 const editAllTypes = (request, response) => {
-    
+    const { name } = request.body;
+    let values = new Array();
+    pool.query('SELECT type_id FROM type ORDER BY type_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        for (let index = 0; index < results.rows.length; index++) {
+            const element = results.rows[index].type_id;
+            values[index] = new Array(element, name);
+        }
+    })
+
+    pool.query('INSERT INTO type (type_id, name) VALUES ? RETURNING *', values, (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of all types to $1', [name])
+    })
 }
 
 const editType = (request, response) => {
-    
+    const id = request.params.typeId;
+    const { name } = request.body;
+    pool.query('INSERT INTO type (type_id, name) VALUES ? RETURNING *', [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of type with id $1 to $2', [id, name]);
+    })
 }
 
 const deleteAllTypes = (request, response) => {
-    
+    pool.query('DELETE FROM type RETURNING *', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted all types')
+    })
 }
 
 const deleteType = (request, response) => {
-    
+    const id = request.params.statusId;
+    pool.query('DELETE FROM type WHERE type_id = $1 RETURNING *', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted type with id $1', [id])
+    })
 }
 
 const getAllClasses = (request, response) => {
