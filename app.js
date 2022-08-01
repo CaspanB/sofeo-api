@@ -344,6 +344,15 @@ app.put('/material/:materialId', db.editMaterial) //Edit specific material
 app.delete('/material', db.deleteAllMaterials) //Delete all materials
 app.delete('/material/:materialId', db.deleteMaterial) //Delete specific material
 
+app.get('/classmaterial/:classrepresentativeId', db.getAllClassMaterials) //Get all materials of a specific class
+app.get('/classmaterial/:classrepresentativeId/:materialId', db.getClassMaterial) //Get specific material of a specific class
+app.post('/classmaterial/:classrepresentativeId/:materialId', db.createClassMaterial) //Link a material id with a class
+app.put('/classmaterial/:classrepresentativeId/:materialId', db.editClassMaterial) //Give over new material id to change material id
+app.put('/classmaterial/:materialId', db.editClassMaterialId) //Give over new class, change class of the material
+app.delete('/classmaterial', db.deleteAllClassMaterials) //Delete all Links
+app.delete('/classmaterial/:classrepresentativeId', db.deleteClassMaterial) //Delete Link based on class (classrepresentative id)
+app.delete('/classmaterial/:materialId', db.deleteClassMaterialId) //Delete Link based on material id
+
 app.listen(PORT, () => {
     console.log(`App running on port ${PORT}.`);
 });
