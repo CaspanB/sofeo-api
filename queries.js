@@ -3,7 +3,23 @@
  * Version: Alpha 0.1
  * Project: Sofeo API
 */
-const { request } = require('express'); // ?
+function isNull(varToCheck, checkZero){
+    if(checkZero == false){
+        if(varToCheck == null || varToCheck == ""){
+            return true;    
+        }else{
+            return false;
+        }
+    }else{
+        if(varToCheck == null || varToCheck == "" || varToCheck == 0){
+            return true;
+        }else{
+            return false;
+        }
+    }
+}
+
+const { request, response } = require('express'); // ?
 const Pool = require('pg').Pool;
 
 const pool = new Pool({
@@ -36,36 +52,71 @@ const getArea = (request, response) => {
 const createArea = (request, response) => {
     const { name } = request.body;
     let id = 0;
-    pool.query('SELECT * FROM area ORDER BY area_id DESC', (error, results) => {
+    pool.query('SELECT area_id FROM area ORDER BY area_id DESC', (error, results) => {
         if(error){
             throw error
         }
         id = results.rows[0].area_id;
     })
 
-    const query = 'INSERT INTO area VALUES ($1, $2) RETURNING *';
+    const query = 'INSERT INTO area (area_id, name) VALUES ? RETURNING *';
     pool.query(query, [id, name], (error, results) => {
         if(error){
             throw error
         }
-        response.status(200).send('Create Area $1', [id]);
+        response.status(200).send('Created Area with id $1 and name $2', [id, name]);
     })
 }
 
 const editAllAreas = (request, response) => {
-    
+    const { name } = request.body;
+    let values = new Array();
+    pool.query('SELECT area_id FROM area ORDER BY area_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        for (let index = 0; index < results.rows.length; index++) {
+            const element = results.rows[index].area_id;
+            values[index] = new Array(element, name);
+        }
+    })
+
+    pool.query('INSERT INTO area (area_id, name) VALUES ? RETURNING *', values, (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of all areas to $1', [name])
+    })
 }
 
 const editArea = (request, response) => {
-    
+    const id = request.params.areaId;
+    const { name } = request.body;
+    pool.query('INSERT INTO area (area_id, name) VALUES ? RETURNING *', [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of area with id $1 to $2', [id, name]);
+    })
 }
 
 const deleteAllAreas = (request, response) => {
-    
+    pool.query('DELETE FROM area RETURNING *', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted all areas')
+    })
 }
 
 const deleteArea = (request, response) => {
-    
+    const id = request.params.areaId;
+    pool.query('DELETE FROM area WHERE area_id = $1 RETURNING *', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted area with id $1', [id])
+    })
 }
 
 const getAllGenders = (request, response) => {
