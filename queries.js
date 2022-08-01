@@ -139,23 +139,73 @@ const getGender = (request, response) => {
 }
 
 const createGender = (request, response) => {
-    
+    const { name } = request.body;
+    let id = 0;
+    pool.query('SELECT gender_id FROM gender ORDER BY gender_id DESC', (error, results) => {
+        if(error){
+            throw error
+        }
+        id = results.rows[0].gender_id;
+    })
+
+    const query = 'INSERT INTO gender (gender_id, name) VALUES ? RETURNING *';
+    pool.query(query, [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Created Gender with id $1 and name $2', [id, name]);
+    })
 }
 
 const editAllGenders = (request, response) => {
-    
+    const { name } = request.body;
+    let values = new Array();
+    pool.query('SELECT gender_id FROM gender ORDER BY gender_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        for (let index = 0; index < results.rows.length; index++) {
+            const element = results.rows[index].gender_id;
+            values[index] = new Array(element, name);
+        }
+    })
+
+    pool.query('INSERT INTO gender (gender_id, name) VALUES ? RETURNING *', values, (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of all genders to $1', [name])
+    })
 }
 
 const editGender = (request, response) => {
-    
+    const id = request.params.genderId;
+    const { name } = request.body;
+    pool.query('INSERT INTO gender (gender_id, name) VALUES ? RETURNING *', [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of gender with id $1 to $2', [id, name]);
+    })
 }
 
 const deleteAllGenders = (request, response) => {
-    
+    pool.query('DELETE FROM gender RETURNING *', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted all genders')
+    })
 }
 
 const deleteGender = (request, response) => {
-    
+    const id = request.params.genderId;
+    pool.query('DELETE FROM gender WHERE gender_id = $1 RETURNING *', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted gender with id $1', [id])
+    })
 }
 
 const getAllTeams = (request, response) => {
