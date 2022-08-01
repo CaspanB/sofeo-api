@@ -661,6 +661,47 @@ const deleteMaterial = (request, response) => {
     
 }
 
+const getAllClassMaterials = (request, response) => {
+    pool.query('SELECT * FROM classrep_material ORDER BY id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
+}
+
+const getClassMaterial = (request, response) => {
+    const id = request.params.materialId
+    pool.query('SELECT * FROM classrep_material WHERE id = $1', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).json(results.rows)
+    })
+}
+
+//id (false), classrep_id (false), material_id (false)
+
+const createClassMaterial = (request, response) => {
+
+}
+
+const editClassMaterial = (request, response) => {
+
+}
+
+const editClassMaterialId = (request, response) => {
+
+}
+
+const deleteClassMaterial = (request, response) => {
+
+}
+
+const deleteClassMaterialId = (request, response) => {
+
+}
+
 
 /*
 Get Request
