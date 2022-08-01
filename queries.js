@@ -228,23 +228,73 @@ const getTeam = (request, response) => {
 }
 
 const createTeam = (request, response) => {
-    
+    const { name } = request.body;
+    let id = 0;
+    pool.query('SELECT team_id FROM team ORDER BY team_id DESC', (error, results) => {
+        if(error){
+            throw error
+        }
+        id = results.rows[0].team_id;
+    })
+
+    const query = 'INSERT INTO team (team_id, name) VALUES ? RETURNING *';
+    pool.query(query, [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Created team with id $1 and name $2', [id, name]);
+    })
 }
 
 const editAllTeams = (request, response) => {
-    
+    const { name } = request.body;
+    let values = new Array();
+    pool.query('SELECT team_id FROM team ORDER BY team_id ASC', (error, results) => {
+        if(error){
+            throw error
+        }
+        for (let index = 0; index < results.rows.length; index++) {
+            const element = results.rows[index].team_id;
+            values[index] = new Array(element, name);
+        }
+    })
+
+    pool.query('INSERT INTO team (team_id, name) VALUES ? RETURNING *', values, (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of all teams to $1', [name])
+    })
 }
 
 const editTeam = (request, response) => {
-    
+    const id = request.params.teamId;
+    const { name } = request.body;
+    pool.query('INSERT INTO team (team_id, name) VALUES ? RETURNING *', [id, name], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Changed name of team with id $1 to $2', [id, name]);
+    })
 }
 
 const deleteAllTeams = (request, response) => {
-    
+    pool.query('DELETE FROM team RETURNING *', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted all teams')
+    })
 }
 
 const deleteTeam = (request, response) => {
-    
+    const id = request.params.teamId;
+    pool.query('DELETE FROM team WHERE team_id = $1 RETURNING *', [id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted team with id $1', [id])
+    })
 }
 
 const getAllChannels = (request, response) => {
