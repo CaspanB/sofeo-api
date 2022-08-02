@@ -632,23 +632,136 @@ const getClass = (request, response) => {
 }
 
 const createClass = (request, response) => {
- 
+    const { grade, group, classrepresentative_id } = request.body;
+
+    const query = 'INSERT INTO class (grade, class, classrep_id) VALUES ? RETURNING *';
+    pool.query(query, [grade, group, classrepresentative_id], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Created class with name $1 and classrepresentative id $2', [`${grade}-${group}`, classrepresentative_id]);
+    })
 }
 
+//Add request for a grade or a class (gruop)
+
 const editAllClasses = (request, response) => {
+    const { grade, group, classrepresentative_id } = request.body;
+    const nulls = new Array(isNull(grade, true), isNull(group, true), isNull(classrepresentative_id, false));
     
+    if(nulls[1] && nulls[2]){ // given: grade
+        pool.query('INSERT INTO class (grade) VALUES ? RETURNING *', [grade], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed grade of all classes to $1', [grade])
+        })
+    }else if(nulls[0] && nulls[2]){ // given: class (group)
+        pool.query('INSERT INTO class (class) VALUES ? RETURNING *', [group], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed class of all classes to $1', [group])
+        })
+    }else if(nulls[0] && nulls[1]){ // given: classrep_id
+        pool.query('INSERT INTO class (classrep_id) VALUES ? RETURNING *', [classrepresentative_id], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed classrepresentative id of all classes to $1', [classrepresentative_id])
+        })
+    }else if(nulls[0]){ // given: class (group), classrep_id
+        pool.query('INSERT INTO class (class, classrep_id) VALUES ? RETURNING *', [group, classrepresentative_id], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed class of all classes to $1 and classrepresentative id to $2', [group, classrepresentative_id])
+        })
+    }else if(nulls[1]){ // given: grade, classrep_id
+        pool.query('INSERT INTO class (grade, classrep_id) VALUES ? RETURNING *', [grade, classrepresentative_id], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed grade of all classes to $1 and classrepresentative id to $2', [grade, classrepresentative_id])
+        })
+    }else if(nulls[2]){ // given: grade, class
+        pool.query('INSERT INTO class (grade, class) VALUES ? RETURNING *', [grade, group], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed grade of all classes to $1 and class to $2', [grade, group])
+        })
+    }else{
+        pool.query('INSERT INTO class (grade, class, classrep_id) VALUES ? RETURNING *', [grade, group, classrepresentative_id], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed grade of all classes to $1 class to $2 and classrepresentative id to $3', [grade, group, classrepresentative_id])
+        })
+    }
 }
 
 const editClass = (request, response) => {
-    
+    const gradeId = request.params.grade;
+    const groupId = request.params.group;
+    const { grade, group, classrepresentative_id } = request.body;
+    const nulls = new Array(isNull(grade, true), isNull(group, true), isNull(classrepresentative_id, false));
+    let oldClassrepId = null;
+
+    if(nulls[1] && nulls[2]){ //group and classrep_id are null
+        pool.query('SELECT classrep_id FROM class WHERE grade LIKE $1 AND class LIKE $1', [gradeId, groupId], (error, results) => {
+            if(error){
+                throw error
+            }
+            oldClassrepId = results.rows[0].classrep_id;
+        })
+        pool.query('INSERT INTO class (grade, class, classrep_id) VALUES ? RETURNING *', [grade, groupId, oldClassrepId], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed grade to $1', [grade]);
+        })
+    }else if(nulls[0] && nulls[2]){ // grade and classrep_id are null
+        pool.query('SELECT classrep_id FROM class WHERE grade LIKE $1 AND class LIKE $2', [gradeId, groupId], (error, results) => {
+            if(error){
+                throw error
+            }
+            oldClassrepId = results.rows[0].classrep_id;
+        })
+        pool.query('INSERT INTO class(grade, class, classrep_id) VALUES ? RETURNING *', [gradeId, group, oldClassrepId], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed class to $1', [group])
+        })
+    }else if(nulls[0] && nulls[1]){
+        pool.query('INSERT INTO class(grade, class, classrep_id) VALUES ? RETURNING *', [gradeId, groupId, classrepresentative_id], (error, results) => {
+            if(error){
+                throw error
+            }
+            response.status(200).send('Changed classrepresentative Id to $1', [classrepresentative_id])
+        })
+    }
 }
 
 const deleteAllClasses = (request, response) => {
-    
+    pool.query('DELETE FROM class RETURNING *', (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted all classes')
+    })
 }
 
 const deleteClass = (request, response) => {
-    
+    const grade = request.params.grade;
+    const group = request.params.group;
+    pool.query('DELETE FROM class WHERE grade LIKE $1 AND class LIKE $2 RETURNING *', [grade, group], (error, results) => {
+        if(error){
+            throw error
+        }
+        response.status(200).send('Deleted class with grade $1 and class $2', [grade, group])
+    })
 }
 
 const getAllStands = (request, response) => {
