@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Sessions {
+  id String @id
+  benutzer_id Int
+}
+
+model Benutzer {
+  id Int @id @default(autoincrement())
+  loginname String @db.VarChar(50)
+  passwort String @db.VarChar(50)
+  berechtigungen Int[]
+}
+
+model Helfer {
+  id Int @id @default(autoincrement())
+  vorname String @db.VarChar(25)
+  nachname String @db.VarChar(25)
+  geburtstag String? @db.VarChar(50)
+  klasse String? @db.VarChar(50)
+  rufname String? @db.VarChar(25)
+  status Int?
+  verfuegbareZeiten String[] @db.VarChar(50)
+  gewuenschteAufgaben String[] @db.VarChar(50)
+}
+
+model Lehrer {
+  kuerzel String @id @db.VarChar(5)
+  vorname String? @db.VarChar(25)
+  nachname String @db.VarChar(25)
+}
+
+model Klassen {
+  kuerzel String @id @db.VarChar(6)
+  klassenstufe Int
+  klasse String @db.VarChar(4)
+  stand_id String? @db.VarChar(4)
+}
+
+model Funkgeraete {
+  id String @id @db.VarChar(15)
+  festid String? @db.VarChar(5)
+}
+
+model Aufgabentypen {
+  id Int @id @default(autoincrement())
+  name String @db.VarChar(25)
+  beschreibung String? @db.VarChar(100)
+}
+
+model Staende {
+  id Int @id @default(autoincrement())
+  klasse String @db.VarChar(6)
+  lehrer String? @db.VarChar(5)
+  name String? @db.VarChar(25)
+  position String? @db.VarChar(50)
+}
+
+model Materialtypen {
+  id Int @id @default(autoincrement())
+  name String @db.VarChar(25)
+  anzahl Int?
+}
+
+model Lager {
+  id Int @id @default(autoincrement())
+  name String @db.VarChar(25)
+  position String? @db.VarChar(50)
+}
+
+model Aufgaben {
+  id Int @id @default(autoincrement())
+  start DateTime?
+  dauer Int
+  helfer_id String @db.VarChar(4)
+  aufgabentyp_id String @db.VarChar(4)
+  funk_id String? @db.VarChar(15)
+}
+
+model Materialien {
+  id Int @id @default(autoincrement())
+  lager_id String @db.VarChar(4)
+  materialtyp_id String @db.VarChar(4)
+  anzahl Int?
+}
+
+model Materialienausgabe {
+  id Int @id @default(autoincrement())
+  stand_id String @db.VarChar(4)
+  lager_id String @db.VarChar(4)
+  materialtyp_id String @db.VarChar(4)
+  anzahl Int?
+}
+
+model Mitteilungen {
+  id Int @id @default(autoincrement())
+  mitteilung String @db.VarChar(100)
+  empfaenger Int
+}
