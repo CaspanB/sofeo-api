@@ -11,99 +11,115 @@ datasource db {
 }
 
 model Sessions {
-  id String @id
+  id          String @id
   benutzer_id Int
 }
 
 model Benutzer {
-  id Int @id @default(autoincrement())
-  loginname String @db.VarChar(50)
-  passwort String @db.VarChar(50)
+  id             Int    @id @default(autoincrement())
+  loginname      String @db.VarChar(50)
+  passwort       String @db.VarChar(50)
   berechtigungen Int[]
 }
 
 model Helfer {
-  id Int @id @default(autoincrement())
-  vorname String @db.VarChar(25)
-  nachname String @db.VarChar(25)
-  geburtstag String? @db.VarChar(50)
-  klasse String? @db.VarChar(50)
-  rufname String? @db.VarChar(25)
-  status Int?
-  verfuegbareZeiten String[] @db.VarChar(50)
-  gewuenschteAufgaben String[] @db.VarChar(50)
+  id                  Int        @id @default(autoincrement())
+  vorname             String     @db.VarChar(25)
+  nachname            String     @db.VarChar(25)
+  geburtstag          String?    @db.VarChar(50)
+  klasse              String?    @db.VarChar(50)
+  rufname             String?    @db.VarChar(25)
+  status              Int?
+  verfuegbareZeiten   String[]   @db.VarChar(50)
+  gewuenschteAufgaben String[]   @db.VarChar(50)
+  aufgaben            Aufgaben[]
 }
 
 model Lehrer {
-  kuerzel String @id @db.VarChar(5)
-  vorname String? @db.VarChar(25)
-  nachname String @db.VarChar(25)
+  kuerzel  String  @id @db.VarChar(5)
+  vorname  String? @db.VarChar(25)
+  nachname String  @db.VarChar(25)
 }
 
 model Klassen {
-  kuerzel String @id @db.VarChar(6)
+  kuerzel      String  @id @db.VarChar(6)
   klassenstufe Int
-  klasse String @db.VarChar(4)
-  stand_id String? @db.VarChar(4)
+  klasse       String  @db.VarChar(4)
+  stand_id     String? @db.VarChar(4)
 }
 
 model Funkgeraete {
-  id String @id @db.VarChar(15)
-  festid String? @db.VarChar(5)
+  id       String     @id @db.VarChar(15)
+  festid   String?    @db.VarChar(5)
+  aufgaben Aufgaben[]
 }
 
 model Aufgabentypen {
-  id Int @id @default(autoincrement())
-  name String @db.VarChar(25)
-  beschreibung String? @db.VarChar(100)
+  id           Int        @id @default(autoincrement())
+  name         String     @db.VarChar(25)
+  beschreibung String?    @db.VarChar(100)
+  aufgaben     Aufgaben[]
 }
 
 model Staende {
-  id Int @id @default(autoincrement())
-  klasse String @db.VarChar(6)
-  lehrer String? @db.VarChar(5)
-  name String? @db.VarChar(25)
-  position String? @db.VarChar(50)
+  id                 Int                  @id @default(autoincrement())
+  klasse             String               @db.VarChar(6)
+  lehrer             String?              @db.VarChar(5)
+  name               String?              @db.VarChar(25)
+  position           String?              @db.VarChar(50)
+  materialienausgabe Materialienausgabe[]
 }
 
 model Materialtypen {
-  id Int @id @default(autoincrement())
-  name String @db.VarChar(25)
-  anzahl Int?
+  id                 Int                  @id @default(autoincrement())
+  name               String               @db.VarChar(25)
+  anzahl             Int?
+  materialien        Materialien[]
+  materialienausgabe Materialienausgabe[]
 }
 
 model Lager {
-  id Int @id @default(autoincrement())
-  name String @db.VarChar(25)
-  position String? @db.VarChar(50)
+  id                 Int                  @id @default(autoincrement())
+  name               String               @db.VarChar(25)
+  position           String?              @db.VarChar(50)
+  materialien        Materialien[]
+  materialienausgabe Materialienausgabe[]
 }
 
 model Aufgaben {
-  id Int @id @default(autoincrement())
-  start DateTime?
-  dauer Int
-  helfer_id String @db.VarChar(4)
-  aufgabentyp_id String @db.VarChar(4)
-  funk_id String? @db.VarChar(15)
+  id             Int           @id @default(autoincrement())
+  start          DateTime
+  dauer          Int
+  helfer_id      Int
+  helfer         Helfer        @relation(fields: [helfer_id], references: [id])
+  aufgabentyp_id Int
+  aufgabentyp    Aufgabentypen @relation(fields: [aufgabentyp_id], references: [id])
+  funk_id        String?       @db.VarChar(15)
+  funkgeraet     Funkgeraete?  @relation(fields: [funk_id], references: [id])
 }
 
 model Materialien {
-  id Int @id @default(autoincrement())
-  lager_id String @db.VarChar(4)
-  materialtyp_id String @db.VarChar(4)
-  anzahl Int?
+  id             Int           @id @default(autoincrement())
+  lager_id       Int
+  lager          Lager         @relation(fields: [lager_id], references: [id])
+  materialtyp_id Int
+  materialtyp    Materialtypen @relation(fields: [materialtyp_id], references: [id])
+  anzahl         Int?
 }
 
 model Materialienausgabe {
-  id Int @id @default(autoincrement())
-  stand_id String @db.VarChar(4)
-  lager_id String @db.VarChar(4)
-  materialtyp_id String @db.VarChar(4)
-  anzahl Int?
+  id             Int           @id @default(autoincrement())
+  stand_id       Int
+  stand          Staende       @relation(fields: [stand_id], references: [id])
+  lager_id       Int
+  lager          Lager         @relation(fields: [lager_id], references: [id])
+  materialtyp_id Int
+  materialtyp    Materialtypen @relation(fields: [materialtyp_id], references: [id])
+  anzahl         Int?
 }
 
 model Mitteilungen {
-  id Int @id @default(autoincrement())
+  id         Int    @id @default(autoincrement())
   mitteilung String @db.VarChar(100)
   empfaenger Int
 }
