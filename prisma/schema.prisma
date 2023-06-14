@@ -65,7 +65,7 @@ model Staende {
   id                 Int                  @id @default(autoincrement())
   klasse             String               @db.VarChar(6)
   lehrer             String?              @db.VarChar(5)
-  name               String?              @db.VarChar(25)
+  name               String              @db.VarChar(25) @unique
   position           String?              @db.VarChar(50)
   materialienausgabe Materialienausgabe[]
 }
@@ -91,30 +91,30 @@ model Aufgaben {
   start          DateTime
   dauer          Int
   helfer_id      Int
-  helfer         Helfer        @relation(fields: [helfer_id], references: [id])
+  helfer         Helfer        @relation(fields: [helfer_id], references: [id],onDelete: Cascade)
   aufgabentyp_id Int
-  aufgabentyp    Aufgabentypen @relation(fields: [aufgabentyp_id], references: [id])
+  aufgabentyp    Aufgabentypen @relation(fields: [aufgabentyp_id], references: [id], onDelete: Cascade)
   funk_id        String?       @db.VarChar(15)
-  funkgeraet     Funkgeraete?  @relation(fields: [funk_id], references: [id])
+  funkgeraet     Funkgeraete?  @relation(fields: [funk_id], references: [id],onDelete: SetNull)
 }
 
 model Materialien {
   id             Int           @id @default(autoincrement())
   lager_id       Int
-  lager          Lager         @relation(fields: [lager_id], references: [id])
+  lager          Lager         @relation(fields: [lager_id], references: [id],onDelete: Cascade)
   materialtyp_id Int
-  materialtyp    Materialtypen @relation(fields: [materialtyp_id], references: [id])
+  materialtyp    Materialtypen @relation(fields: [materialtyp_id], references: [id], onDelete: Cascade)
   anzahl         Int?
 }
 
 model Materialienausgabe {
   id             Int           @id @default(autoincrement())
   stand_id       Int
-  stand          Staende       @relation(fields: [stand_id], references: [id])
+  stand          Staende       @relation(fields: [stand_id], references: [id], onDelete: Cascade)
   lager_id       Int
-  lager          Lager         @relation(fields: [lager_id], references: [id])
+  lager          Lager         @relation(fields: [lager_id], references: [id], onDelete: Cascade)
   materialtyp_id Int
-  materialtyp    Materialtypen @relation(fields: [materialtyp_id], references: [id])
+  materialtyp    Materialtypen @relation(fields: [materialtyp_id], references: [id], onDelete: Cascade)
   anzahl         Int?
 }
 
