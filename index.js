@@ -150,14 +150,14 @@ app.route('/helfer')
       }
    }})
 
-app.route('/helfer/:helferId')
+app.route('/helfer/:helferid')
    .get(async (req, res) => {
       const {sessiontoken} = req.body
-      const {helferId} = req.params
+      const {helferid} = req.params
       if(isValidSessiontoken(sessiontoken)){
          const result = await prisma.helfer.findUnique({
             where: {
-               id: benutzerId
+               id: Number(helferid)
             }
          })
          res.status(200)
@@ -172,21 +172,11 @@ app.route('/helfer/:helferId')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken} = req.body
-   })
-app.route('/klassen')
-   .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken, vorname, nachname, geburtstag, klasse, rufname, status, verfuegbareZeiten, gewuenschteAufgaben} = req.body
+      const {helferid} = req.params
 
       if(isValidSessiontoken(sessiontoken)){
-         const count = await prisma.klassen.count()
-         const result = await prisma.klassen.findMany()
-
-         res.status(200)
-         res.json({
-            count: count,
-            data: result
-         })
+         
       }else{
          res.status(404)
          res.json({
@@ -194,18 +184,24 @@ app.route('/klassen')
          })
       }
    })
-   .post(async (req, res) => {
-      const {sessiontoken, kuerzel, klassenstufe, klasse, stand_id} = req.body
+   .delete(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {helferid} = req.params
 
-      if(isValidSessiontoken(sessiontoken) && kuerzel && klassenstufe && klasse){
-         const result = await prisma.klassen.create({
-            data: {
-               kuerzel: kuerzel,
-               klassenstufe: Number(klassenstufe),
-               klasse: klasse,
-               stand_id: stand_id
+      if(isValidSessiontoken(sessiontoken)){
+         const resultDeleteHelfer = await prisma.helfer.delete({
+            where: {
+               id: Number(helferid)
             }
          })
+
+         const resultDeleteBenutzer = await prisma.benutzer.delete({
+            where: {
+               id: Number(helferid)
+            }
+         })
+
+         res.status(200)
       }else{
          res.status(404)
          res.json({
@@ -213,7 +209,6 @@ app.route('/klassen')
          })
       }
    })
-app.route('/klassen/:klassenKuerzel')
 
 app.route('/lehrer')
    .get(async (req, res) => {
@@ -254,6 +249,146 @@ app.route('/lehrer')
       }
    })
 
+app.route('/lehrer/:lehrerkuerzel')
+   .get(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {lehrerkuerzel} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .put(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {lehrerkuerzel} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .delete(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {lehrerkuerzel} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+         const result = await prisma.lehrer.delete({
+            where: {
+               kuerzel: lehrerkuerzel
+            }
+         })
+
+         res.status(200)
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+
+app.route('/klassen')
+   .get(async (req, res) => {
+      const {sessiontoken} = req.body
+
+      if(isValidSessiontoken(sessiontoken)){
+         const count = await prisma.klassen.count()
+         const result = await prisma.klassen.findMany()
+
+         res.status(200)
+         res.json({
+            count: count,
+            data: result
+         })
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .post(async (req, res) => {
+      const {sessiontoken, kuerzel, klassenstufe, klasse, stand_name} = req.body
+
+      const stand_id = await prisma.staende.findUnique({
+         where: {
+            name: stand_name
+         }
+      })
+
+      if(isValidSessiontoken(sessiontoken) && kuerzel && klassenstufe && klasse){
+         const result = await prisma.klassen.create({
+            data: {
+               kuerzel: kuerzel,
+               klassenstufe: Number(klassenstufe),
+               klasse: klasse,
+               stand_id: stand_id.id
+            }
+         })
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   
+app.route('/klassen/:klassenkuerzel')
+   .get(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {klassenkuerzel} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .put(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {klassenkuerzel} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .delete(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {klassenkuerzel} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+         const result = await prisma.klassen.delete({
+            where: {
+               kuerzel: klassenkuerzel
+            }
+         })
+
+         res.status(200)
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+
 app.route('/funkgeraete')
    .get(async (req, res) => {
       const {sessiontoken} = req.body
@@ -275,15 +410,62 @@ app.route('/funkgeraete')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, id, festid} = req.body
+      const {sessiontoken, id, fest_id} = req.body
 
       if(isValidSessiontoken(sessiontoken) && id){
          const result = await prisma.funkgeraete.create({
             data: {
                id: id,
-               festid: festid
+               festid: fest_id
             }
          })
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+
+app.route('/funkgeraete/:funkid')
+   .get(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {funkid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .put(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {funkid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .delete(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {funkid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+         const result = await prisma.funkgeraete.delete({
+            where: {
+               id: funkid
+            }
+         })
+
+         res.status(200)
       }else{
          res.status(404)
          res.json({
@@ -324,6 +506,51 @@ app.route('/aufgabentypen')
          })
          
          res.status(200)
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+
+app.route('/aufgabentypen/:typid')
+   .get(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {typid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .put(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {typid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .delete(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {typid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+         const result = await prisma.aufgabentypen.delete({
+            where: {
+               id: Number(typid)
+            }
+         })
       }else{
          res.status(404)
          res.json({
@@ -374,6 +601,51 @@ app.route('/staende')
       }
    })
 
+app.route('/staende/:standid')
+.get(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {standid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.put(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {standid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.delete(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {standid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      const result = await prisma.staende.delete({
+         where: {
+            id: Number(standid)
+         }
+      })
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+
 app.route('/materialtypen')
    .get(async (req, res) => {
       const {sessiontoken} = req.body
@@ -412,6 +684,51 @@ app.route('/materialtypen')
          })
       }
    })
+
+app.route('/materialtypen/:typid')
+.get(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {typid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.put(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {typid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.delete(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {typid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      const result = await prisma.materialtypen.delete({
+         where: {
+            id: Number(typid)
+         }
+      })
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
 
 app.route('/lager')
    .get(async (req, res) => {
@@ -452,6 +769,51 @@ app.route('/lager')
          })
       }
    })
+
+app.route('/lager/:lagerid')
+.get(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {lagerid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.put(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {lagerid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.delete(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {lagerid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      const result = await prisma.lager.delete({
+         where: {
+            id: Number(lagerid)
+         }
+      })
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
 
 app.route('/aufgaben')
    .get(async (req, res) => {
@@ -533,6 +895,53 @@ app.route('/aufgaben')
    })
 
 
+app.route('/aufgaben/:aufgabenid')
+   .get(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {aufgabenid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .put(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {aufgabenid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .delete(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {aufgabenid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+         const result = await prisma.aufgaben.delete({
+            where: {
+               id: Number(aufgabenid)
+            }
+         })
+
+         res.status(200)
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+
 app.route('/materialien')
    .get(async (req, res) => {
       const {sessiontoken} = req.body
@@ -597,6 +1006,53 @@ app.route('/materialien')
          })
       }
    })
+
+app.route('/materialien/:materialienid')
+.get(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {materialienid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.put(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {materialienid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.delete(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {materialienid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      const result = await prisma.materialien.delete({
+         where: {
+            id: Number(materialienid)
+         }
+      })
+
+      res.status(200)
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
 
 app.route('/materialienausgabe')
    .get(async (req, res) => {
@@ -675,6 +1131,53 @@ app.route('/materialienausgabe')
       }
    })
 
+app.route('/materialienausgabe/:ausgabeid')
+.get(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {ausgabeid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.put(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {ausgabeid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.delete(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {ausgabeid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      const result = await prisma.materialienausgabe.delete({
+         where: {
+            id: Number(ausgabeid)
+         }
+      })
+
+      res.status(200)
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+
 app.route('/mitteilungen')
    .get(async (req, res) => {
       const {sessiontoken} = req.body
@@ -712,7 +1215,54 @@ app.route('/mitteilungen')
          })
       }
    })
-   
+
+app.route('/mitteilungen/:mitteilungsid')
+.get(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {mitteilungsid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.put(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {mitteilungsid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.delete(async (req, res) => {
+   const {sessiontoken} = req.body
+   const {mitteilungsid} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      const result = await prisma.mitteilungen.delete({
+         where: {
+            id: Number(mitteilungsid)
+         }
+      })
+
+      res.status(200)
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+
 app.get('/', async (req, res) => {
    res.json({
       name: 'Sofeo API',
