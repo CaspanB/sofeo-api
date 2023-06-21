@@ -96,6 +96,9 @@ model Aufgaben {
   aufgabentyp    Aufgabentypen @relation(fields: [aufgabentyp_id], references: [id], onDelete: Cascade)
   funk_id        String?       @db.VarChar(15)
   funkgeraet     Funkgeraete?  @relation(fields: [funk_id], references: [id],onDelete: SetNull)
+  clone_id Int? @unique
+  clone Aufgaben? @relation("clones", fields: [clone_id], references: [id], onDelete: Cascade)
+  cloned Aufgaben? @relation("clones")
 }
 
 model Materialien {
