@@ -160,6 +160,9 @@ app.route('/helfer/:helferid')
                id: Number(helferid)
             }
          })
+
+         console.log(result)
+
          res.status(200)
          res.json({
             data: result
@@ -200,6 +203,53 @@ app.route('/helfer/:helferid')
                id: Number(helferid)
             }
          })
+
+         res.status(200)
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+
+app.route('/helfer/checkin/:helferid')
+   .get(async (req, res) => {
+      const {sessiontoken} = req.body
+      const {helferid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+         // return status
+         const result = await prisma.helfer.findUnique({
+            where: {
+               id: helferid
+            },
+            select: {
+               status: true
+            }
+         })
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .put(async (req, res) => {
+      const {sessiontoken, status} = req.body
+      const {helferid} = req.params
+
+      if(isValidSessiontoken(sessiontoken)){
+         // Change status
+         const result = await prisma.helfer.update({
+            where: {
+               id: helferid
+            },
+            data: {
+               status: status
+            }
+         })
+         console.log(result)
 
          res.status(200)
       }else{
@@ -894,6 +944,46 @@ app.route('/aufgaben')
       }
    })
 
+app.get('/aufgaben/alte', async (req, res) => {
+   const {sessiontoken} = req.body
+
+   if(isValidSessiontoken(sessiontoken)){
+      // Active tasks
+      const result = await prisma.aufgaben.findMany({
+         select: {
+            helfer: {
+               where: {
+                  status: Number(1)
+               }
+            }
+         }
+      })
+      console.log(result)
+
+      res.status(200)
+      res.json({
+         data: result
+      })
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+
+app.get('/aufgaben/neue', async (req, res) => {
+   const {sessiontoken} = req.body
+
+   if(isValidSessiontoken(sessiontoken)){
+      // Non-active tasks starting in the next 10 Minutes
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
 
 app.route('/aufgaben/:aufgabenid')
    .get(async (req, res) => {
