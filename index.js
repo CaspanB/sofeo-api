@@ -82,6 +82,7 @@ app.route('/helfer')
    }})
    .post(async (req, res) => {{
       const {sessiontoken, id, vorname, nachname, geburtstag, klasse, rufname, verfuegbareZeiten, gewuenschteAufgaben, berechtigungen} = req.body
+
       //Check Sessiontoken
       if(isValidSessiontoken(sessiontoken) && vorname && nachname){
          let Zeiten = []
@@ -98,6 +99,15 @@ app.route('/helfer')
          const loginname = vorname.toLowerCase() + '.' + nachname.toLowerCase()
 
          if(id){
+            const user = await prisma.benutzer.create({
+               data: {
+                  id: Number(id),
+                  loginname: loginname,
+                  passwort: String(btoa(geburtstag)),
+                  berechtigungen: berechtigungenForm
+               }
+            })
+
             const result = await prisma.helfer.create({
                data: {
                   id: Number(id),
@@ -110,18 +120,22 @@ app.route('/helfer')
                   gewuenschteAufgaben: Aufgaben
                }
             })
-
-            const user = await prisma.benutzer.create({
-               data: {
-                  id: Number(id),
-                  loginname: loginname,
-                  passwort: String(geburtstag),
-                  berechtigungen: berechtigungenForm
-               }
-            })
+            
+            console.log('Created new user: ')
+            console.log(result)
+            console.log(user)
          }else{
+            const user = await prisma.benutzer.create({
+               data: {
+                  loginname: loginname,
+                  passwort: String(geburtstag),
+                  berechtigungen: berechtigungenForm
+               }
+            })
+
             const result = await prisma.helfer.create({
                data: {
+                  id: Number(user.id),
                   vorname: vorname,
                   nachname: nachname,
                   geburtstag: geburtstag,
@@ -132,15 +146,11 @@ app.route('/helfer')
                }
             })
 
-            const user = await prisma.benutzer.create({
-               data: {
-                  id: Number(id),
-                  loginname: loginname,
-                  passwort: String(geburtstag),
-                  berechtigungen: berechtigungenForm
-               }
-            })
+            console.log('Created new user: ')
+            console.log(result)
+            console.log(user)
          }
+
          res.status(200)
       }else{
          res.status(404)
@@ -1405,14 +1415,25 @@ app.post('/benutzer/login', async (req, res) => {
 app.get('/benutzer/logout/:sessiontoken', async (req, res) => {
    // Delete sessiontoken
    const {sessiontoken} = req.params
+   
+   if(isValidSessiontoken(sessiontoken)){
+      const result = await prisma.sessions.delete({
+         where: {
+            id: sessiontoken
+         }
+      })
 
-   const result = await prisma.sessions.delete({
-      where: {
-         id: sessiontoken
-      }
-   })
+      console.log(result)
 
-   res.status(200)
+      console.log('Logged out user with sessiontoken: ', sessiontoken)
+
+      res.status(200)
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
 })
 
 app.put('/benutzer/:id/:passwort', async (req, res) => {
