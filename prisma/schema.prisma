@@ -17,7 +17,7 @@ model Sessions {
 
 model Benutzer {
   id             Int    @id @default(autoincrement())
-  loginname      String @db.VarChar(50)
+  loginname      String @db.VarChar(50) @unique
   passwort       String @db.VarChar(50)
   berechtigungen Int[]
 }
@@ -26,7 +26,7 @@ model Helfer {
   id                  Int        @id @default(autoincrement())
   vorname             String     @db.VarChar(25)
   nachname            String     @db.VarChar(25)
-  geburtstag          String?    @db.VarChar(50)
+  geburtstag          String    @db.VarChar(50)
   klasse              String?    @db.VarChar(50)
   rufname             String?    @db.VarChar(25)
   status              Int?
