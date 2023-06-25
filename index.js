@@ -1442,16 +1442,25 @@ app.get('/benutzer/logout/:sessiontoken', async (req, res) => {
 
 app.put('/benutzer/:id/:passwort', async (req, res) => {
    const {id, passwort} = req.params
+   const {sessiontoken} = req.body
 
-   const result = await prisma.benutzer.update({
-      where: {
-         id: Number(id),
-      },
-      data: {
-         passwort: passwort,
-      },
-   })
+   if(await isValidSessiontoken(sessiontoken)){
+      const result = await prisma.benutzer.update({
+         where: {
+            id: Number(id),
+         },
+         data: {
+            passwort: passwort,
+         },
+      })
+   
+      res.status(200)
+      console.log(result)
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
 
-   res.status(200)
-   res.json(result)
 })
