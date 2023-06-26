@@ -8,6 +8,8 @@ const prisma = new PrismaClient()
 const app = express()
 
 const isValidSessiontoken = async (sessiontoken) => {
+   console.log('Requested Sessiontoken validation: ', sessiontoken)
+
    if(sessiontoken === null || !sessiontoken){
       return false // Sessiontoken is null or undefined, Sessiontoken is invalid
    }
@@ -62,8 +64,9 @@ app.route('/benutzer/:benutzerId')
    })
 
 app.route('/helfer')
+app.route('/:sessiontoken/helfer')
    .get(async (req, res) => {{
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
       // Check Sessiontoken
       if(await isValidSessiontoken(sessiontoken)){
          // Get all helpers
@@ -71,6 +74,8 @@ app.route('/helfer')
          const result = await prisma.helfer.findMany()
 
          // Also get all users --> loginname and Berechtigungen
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -85,7 +90,8 @@ app.route('/helfer')
       }
    }})
    .post(async (req, res) => {{
-      const {sessiontoken, id, vorname, nachname, geburtstag, klasse, rufname, verfuegbareZeiten, gewuenschteAufgaben, berechtigungen} = req.body
+      const {sessiontoken} = req.params
+      const {id, vorname, nachname, geburtstag, klasse, rufname, verfuegbareZeiten, gewuenschteAufgaben, berechtigungen} = req.body
 
       //Check Sessiontoken
       if(await isValidSessiontoken(sessiontoken) && vorname && nachname){
@@ -164,10 +170,10 @@ app.route('/helfer')
       }
    }})
 
-app.route('/helfer/:helferid')
+app.route('/:sessiontoken/helfer/:helferid')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {helferid} = req.params
+      const {sessiontoken, helferid} = req.params
+
       if(await isValidSessiontoken(sessiontoken)){
          const result = await prisma.helfer.findUnique({
             where: {
@@ -189,8 +195,8 @@ app.route('/helfer/:helferid')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken, vorname, nachname, geburtstag, klasse, rufname, status, verfuegbareZeiten, gewuenschteAufgaben} = req.body
-      const {helferid} = req.params
+      const {vorname, nachname, geburtstag, klasse, rufname, status, verfuegbareZeiten, gewuenschteAufgaben} = req.body
+      const {sessiontoken, helferid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          
@@ -202,8 +208,7 @@ app.route('/helfer/:helferid')
       }
    })
    .delete(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {helferid} = req.params
+      const {sessiontoken, helferid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const resultDeleteHelfer = await prisma.helfer.delete({
@@ -227,10 +232,9 @@ app.route('/helfer/:helferid')
       }
    })
 
-app.route('/helfer/checkin/:helferid')
+app.route('/:sessiontoken/helfer/checkin/:helferid')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {helferid} = req.params
+      const {sessiontoken, helferid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          // return status
@@ -242,6 +246,8 @@ app.route('/helfer/checkin/:helferid')
                status: true
             }
          })
+
+         console.log(result)
       }else{
          res.status(404)
          res.json({
@@ -250,8 +256,8 @@ app.route('/helfer/checkin/:helferid')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken, status} = req.body
-      const {helferid} = req.params
+      const {status} = req.body
+      const {sessiontoken, helferid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          // Change status
@@ -274,13 +280,16 @@ app.route('/helfer/checkin/:helferid')
       }
    })
 
-app.route('/lehrer')
+app.route('/:sessiontoken/lehrer')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.lehrer.count()
          const result = await prisma.lehrer.findMany()
+
+         console.log(result)
+
          res.status(200)
          res.json({
             count: count,
@@ -294,7 +303,9 @@ app.route('/lehrer')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, kuerzel, vorname, nachname} = req.body
+      const {sessiontoken} = req.params
+      const {kuerzel, vorname, nachname} = req.body
+
       if(await isValidSessiontoken(sessiontoken) && kuerzel && nachname){
          const result = await prisma.lehrer.create({
             data: {
@@ -313,10 +324,9 @@ app.route('/lehrer')
       }
    })
 
-app.route('/lehrer/:lehrerkuerzel')
+app.route('/:sessiontoken/lehrer/:lehrerkuerzel')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {lehrerkuerzel} = req.params
+      const {sessiontoken, lehrerkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -328,8 +338,7 @@ app.route('/lehrer/:lehrerkuerzel')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {lehrerkuerzel} = req.params
+      const {sessiontoken, lehrerkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -341,8 +350,7 @@ app.route('/lehrer/:lehrerkuerzel')
       }
    })
    .delete(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {lehrerkuerzel} = req.params
+      const {sessiontoken, lehrerkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const result = await prisma.lehrer.delete({
@@ -360,13 +368,15 @@ app.route('/lehrer/:lehrerkuerzel')
       }
    })
 
-app.route('/klassen')
+app.route('/:sessiontoken/klassen')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.klassen.count()
          const result = await prisma.klassen.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -381,7 +391,8 @@ app.route('/klassen')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, kuerzel, klassenstufe, klasse, stand_name} = req.body
+      const {sessiontoken} = req.params
+      const {kuerzel, klassenstufe, klasse, stand_name} = req.body
 
       const stand_id = await prisma.staende.findUnique({
          where: {
@@ -406,10 +417,9 @@ app.route('/klassen')
       }
    })
    
-app.route('/klassen/:klassenkuerzel')
+app.route('/:sessiontoken/klassen/:klassenkuerzel')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {klassenkuerzel} = req.params
+      const {sessiontoken, klassenkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -421,8 +431,7 @@ app.route('/klassen/:klassenkuerzel')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {klassenkuerzel} = req.params
+      const {sessiontoken, klassenkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -434,8 +443,7 @@ app.route('/klassen/:klassenkuerzel')
       }
    })
    .delete(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {klassenkuerzel} = req.params
+      const {sessiontoken, klassenkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const result = await prisma.klassen.delete({
@@ -453,13 +461,15 @@ app.route('/klassen/:klassenkuerzel')
       }
    })
 
-app.route('/funkgeraete')
+app.route('/:sessiontoken/funkgeraete')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.funkgeraete.count()
          const result = await prisma.funkgeraete.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -474,7 +484,8 @@ app.route('/funkgeraete')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, id, fest_id} = req.body
+      const {sessiontoken} = req.params
+      const {id, fest_id} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && id){
          const result = await prisma.funkgeraete.create({
@@ -491,10 +502,9 @@ app.route('/funkgeraete')
       }
    })
 
-app.route('/funkgeraete/:funkid')
+app.route('/:sessiontoken/funkgeraete/:funkid')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {funkid} = req.params
+      const {sessiontoken, funkid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -506,8 +516,7 @@ app.route('/funkgeraete/:funkid')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {funkid} = req.params
+      const {sessiontoken, funkid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -519,8 +528,7 @@ app.route('/funkgeraete/:funkid')
       }
    })
    .delete(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {funkid} = req.params
+      const {sessiontoken, funkid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const result = await prisma.funkgeraete.delete({
@@ -538,13 +546,15 @@ app.route('/funkgeraete/:funkid')
       }
    })
 
-app.route('/aufgabentypen')
+app.route('/:sessiontoken/aufgabentypen')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.aufgabentypen.count()
          const result = await prisma.aufgabentypen.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -559,7 +569,8 @@ app.route('/aufgabentypen')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, name, beschreibung} = req.body
+      const {sessiontoken} = req.params
+      const {name, beschreibung} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && name){
          const result = await prisma.funkgeraete.create({
@@ -578,10 +589,9 @@ app.route('/aufgabentypen')
       }
    })
 
-app.route('/aufgabentypen/:typid')
+app.route('/:sessiontoken/aufgabentypen/:typid')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {typid} = req.params
+      const {sessiontoken, typid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -593,8 +603,7 @@ app.route('/aufgabentypen/:typid')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {typid} = req.params
+      const {sessiontoken, typid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -606,8 +615,7 @@ app.route('/aufgabentypen/:typid')
       }
    })
    .delete(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {typid} = req.params
+      const {sessiontoken, typid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const result = await prisma.aufgabentypen.delete({
@@ -623,13 +631,15 @@ app.route('/aufgabentypen/:typid')
       }
    })
 
-app.route('/staende')
+app.route('/:sessiontoken/staende')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.staende.count()
          const result = await prisma.staende.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -644,7 +654,8 @@ app.route('/staende')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, klasse, lehrer, name, position} = req.body
+      const {sessiontoken} = req.params
+      const {klasse, lehrer, name, position} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && klasse){
          const result = await prisma.staende.create({
@@ -665,10 +676,9 @@ app.route('/staende')
       }
    })
 
-app.route('/staende/:standid')
+app.route('/:sessiontoken/staende/:standid')
 .get(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {standid} = req.params
+   const {sessiontoken, standid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -680,8 +690,7 @@ app.route('/staende/:standid')
    }
 })
 .put(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {standid} = req.params
+   const {sessiontoken, standid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -693,8 +702,7 @@ app.route('/staende/:standid')
    }
 })
 .delete(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {standid} = req.params
+   const {sessiontoken, standid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       const result = await prisma.staende.delete({
@@ -710,13 +718,15 @@ app.route('/staende/:standid')
    }
 })
 
-app.route('/materialtypen')
+app.route('/:sessiontoken/materialtypen')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.materialtypen.count()
          const result = await prisma.materialtypen.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -731,7 +741,8 @@ app.route('/materialtypen')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, name, anzahl} = req.body
+      const {sessiontoken} = req.params
+      const {name, anzahl} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && name){
          const result = await prisma.materialtypen.create({
@@ -749,10 +760,9 @@ app.route('/materialtypen')
       }
    })
 
-app.route('/materialtypen/:typid')
+app.route('/:sessiontoken/materialtypen/:typid')
 .get(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {typid} = req.params
+   const {sessiontoken, typid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -764,8 +774,7 @@ app.route('/materialtypen/:typid')
    }
 })
 .put(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {typid} = req.params
+   const {sessiontoken, typid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -777,8 +786,7 @@ app.route('/materialtypen/:typid')
    }
 })
 .delete(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {typid} = req.params
+   const {sessiontoken, typid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       const result = await prisma.materialtypen.delete({
@@ -794,13 +802,15 @@ app.route('/materialtypen/:typid')
    }
 })
 
-app.route('/lager')
+app.route('/:sessiontoken/lager')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.lager.count()
          const result = await prisma.lager.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -815,7 +825,8 @@ app.route('/lager')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, name, position} = req.body
+      const {sessiontoken} = req.params
+      const {name, position} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && name){
          const result = await prisma.lager.create({
@@ -834,10 +845,9 @@ app.route('/lager')
       }
    })
 
-app.route('/lager/:lagerid')
+app.route('/:sessiontoken/lager/:lagerid')
 .get(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {lagerid} = req.params
+   const {sessiontoken, lagerid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -849,8 +859,7 @@ app.route('/lager/:lagerid')
    }
 })
 .put(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {lagerid} = req.params
+   const {sessiontoken, lagerid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -862,8 +871,7 @@ app.route('/lager/:lagerid')
    }
 })
 .delete(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {lagerid} = req.params
+   const {sessiontoken, lagerid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       const result = await prisma.lager.delete({
@@ -879,13 +887,15 @@ app.route('/lager/:lagerid')
    }
 })
 
-app.route('/aufgaben')
+app.route('/:sessiontoken/aufgaben')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.aufgaben.count()
          const result = await prisma.aufgaben.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -900,7 +910,8 @@ app.route('/aufgaben')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, start, dauer, helfer_id, aufgabentyp_id, funk_id} = req.body
+      const {sessiontoken} = req.params
+      const {start, dauer, helfer_id, aufgabentyp_id, funk_id} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && start && dauer && helfer_id && aufgabentyp_id){
          const result = await prisma.aufgaben.create({
@@ -958,8 +969,8 @@ app.route('/aufgaben')
       }
    })
 
-app.get('/aufgaben/alte', async (req, res) => {
-   const {sessiontoken} = req.body
+app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
+   const {sessiontoken} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       // Active tasks
@@ -972,6 +983,7 @@ app.get('/aufgaben/alte', async (req, res) => {
             }
          }
       })
+
       console.log(result)
 
       res.status(200)
@@ -986,8 +998,8 @@ app.get('/aufgaben/alte', async (req, res) => {
    }
 })
 
-app.get('/aufgaben/neue', async (req, res) => {
-   const {sessiontoken} = req.body
+app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
+   const {sessiontoken} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       // Non-active tasks starting in the next 10 Minutes
@@ -999,10 +1011,9 @@ app.get('/aufgaben/neue', async (req, res) => {
    }
 })
 
-app.route('/aufgaben/:aufgabenid')
+app.route('/:sessiontoken/aufgaben/:aufgabenid')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {aufgabenid} = req.params
+      const {sessiontoken, aufgabenid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -1014,8 +1025,7 @@ app.route('/aufgaben/:aufgabenid')
       }
    })
    .put(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {aufgabenid} = req.params
+      const {sessiontoken, aufgabenid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
 
@@ -1027,8 +1037,7 @@ app.route('/aufgaben/:aufgabenid')
       }
    })
    .delete(async (req, res) => {
-      const {sessiontoken} = req.body
-      const {aufgabenid} = req.params
+      const {sessiontoken, aufgabenid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const result = await prisma.aufgaben.delete({
@@ -1046,13 +1055,15 @@ app.route('/aufgaben/:aufgabenid')
       }
    })
 
-app.route('/materialien')
+app.route('/:sessiontoken/materialien')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.materialien.count()
          const result = await prisma.materialien.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -1067,7 +1078,8 @@ app.route('/materialien')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, lager_id, materialtyp_id, anzahl} = req.body
+      const {sessiontoken} = req.params
+      const {lager_id, materialtyp_id, anzahl} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && lager_id && materialtyp_id){
          const result = await prisma.materialien.create({
@@ -1111,10 +1123,9 @@ app.route('/materialien')
       }
    })
 
-app.route('/materialien/:materialienid')
+app.route('/:sessiontoken/materialien/:materialienid')
 .get(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {materialienid} = req.params
+   const {sessiontoken, materialienid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -1126,8 +1137,7 @@ app.route('/materialien/:materialienid')
    }
 })
 .put(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {materialienid} = req.params
+   const {sessiontoken, materialienid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -1139,8 +1149,7 @@ app.route('/materialien/:materialienid')
    }
 })
 .delete(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {materialienid} = req.params
+   const {sessiontoken, materialienid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       const result = await prisma.materialien.delete({
@@ -1158,13 +1167,15 @@ app.route('/materialien/:materialienid')
    }
 })
 
-app.route('/materialienausgabe')
+app.route('/:sessiontoken/materialienausgabe')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.materialienausgabe.count()
          const result = await prisma.materialienausgabe.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -1179,7 +1190,8 @@ app.route('/materialienausgabe')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, stand_id, lager_id, materialtyp_id, anzahl} = req.body
+      const {sessiontoken} = req.params
+      const {stand_id, lager_id, materialtyp_id, anzahl} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && stand_id && lager_id && materialtyp_id){
          const result = await prisma.materialienausgabe.create({
@@ -1235,10 +1247,9 @@ app.route('/materialienausgabe')
       }
    })
 
-app.route('/materialienausgabe/:ausgabeid')
+app.route('/:sessiontoken/materialienausgabe/:ausgabeid')
 .get(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {ausgabeid} = req.params
+   const {sessiontoken, ausgabeid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -1250,8 +1261,7 @@ app.route('/materialienausgabe/:ausgabeid')
    }
 })
 .put(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {ausgabeid} = req.params
+   const {sessiontoken, ausgabeid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -1263,8 +1273,7 @@ app.route('/materialienausgabe/:ausgabeid')
    }
 })
 .delete(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {ausgabeid} = req.params
+   const {sessiontoken, ausgabeid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       const result = await prisma.materialienausgabe.delete({
@@ -1282,13 +1291,15 @@ app.route('/materialienausgabe/:ausgabeid')
    }
 })
 
-app.route('/mitteilungen')
+app.route('/:sessiontoken/mitteilungen')
    .get(async (req, res) => {
-      const {sessiontoken} = req.body
+      const {sessiontoken} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.mitteilungen.count()
          const result = await prisma.mitteilungen.findMany()
+
+         console.log(result)
 
          res.status(200)
          res.json({
@@ -1303,7 +1314,8 @@ app.route('/mitteilungen')
       }
    })
    .post(async (req, res) => {
-      const {sessiontoken, mitteilung, empfaenger} = req.body
+      const {sessiontoken} = req.params
+      const {mitteilung, empfaenger} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && mitteilung && empfaenger){
          const result = await prisma.mitteilungen.create({
@@ -1320,10 +1332,9 @@ app.route('/mitteilungen')
       }
    })
 
-app.route('/mitteilungen/:mitteilungsid')
+app.route('/:sessiontoken/mitteilungen/:mitteilungsid')
 .get(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {mitteilungsid} = req.params
+   const {sessiontoken, mitteilungsid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -1335,8 +1346,7 @@ app.route('/mitteilungen/:mitteilungsid')
    }
 })
 .put(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {mitteilungsid} = req.params
+   const {sessiontoken, mitteilungsid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
 
@@ -1348,8 +1358,7 @@ app.route('/mitteilungen/:mitteilungsid')
    }
 })
 .delete(async (req, res) => {
-   const {sessiontoken} = req.body
-   const {mitteilungsid} = req.params
+   const {sessiontoken, mitteilungsid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       const result = await prisma.mitteilungen.delete({
@@ -1368,6 +1377,8 @@ app.route('/mitteilungen/:mitteilungsid')
 })
 
 app.get('/', async (req, res) => {
+   console.log('Get API Server Information')
+
    res.json({
       name: 'Sofeo API',
       version: 'v1.0',
@@ -1416,7 +1427,7 @@ app.post('/benutzer/login', async (req, res) => {
    }
 })
 
-app.get('/benutzer/logout/:sessiontoken', async (req, res) => {
+app.get('/:sessiontoken/benutzer/logout', async (req, res) => {
    // Delete sessiontoken
    const {sessiontoken} = req.params
 
@@ -1427,12 +1438,11 @@ app.get('/benutzer/logout/:sessiontoken', async (req, res) => {
          }
       })
 
-      console.log(result)
-
       console.log('Logged out user with sessiontoken: ', sessiontoken)
 
       res.status(200)
    }else{
+      console.log('Invalid Sessiontoken')
       res.status(404)
       res.json({
          error: 'Invalid Sessiontoken'
@@ -1440,9 +1450,8 @@ app.get('/benutzer/logout/:sessiontoken', async (req, res) => {
    }
 })
 
-app.put('/benutzer/:id/:passwort', async (req, res) => {
-   const {id, passwort} = req.params
-   const {sessiontoken} = req.body
+app.put('/:sessiontoken/benutzer/:id/:passwort', async (req, res) => {
+   const {sessiontoken, id, passwort} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
       const result = await prisma.benutzer.update({
