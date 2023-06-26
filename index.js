@@ -947,7 +947,7 @@ app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
       const result = await prisma.aufgaben.findMany({
          select: {
             helfer: {
-               where: {
+               select: {
                   status: Number(1)
                }
             }
