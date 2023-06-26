@@ -3,7 +3,7 @@ const express = require('express')
 const uuid = require('uuid')
 const cors = require('cors')
 const logger = require('morgan')
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 const prisma = new PrismaClient()
 const app = express()
