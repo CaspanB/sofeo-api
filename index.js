@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client')
 const express = require('express')
 const uuid = require('uuid')
 const cors = require('cors')
+const logger = require('morgan')
 const PORT = 3001;
 
 const prisma = new PrismaClient()
@@ -29,41 +30,10 @@ const isValidSessiontoken = async (sessiontoken) => {
 
 app.use(cors())
 app.use(express.json())
+app.use(logger('combined'))
 
 app.listen(PORT, () => console.log(`Sofeo API Listening on Port ${PORT}`));
 
-app.route('/benutzer/:benutzerId')
-   .get(async (req, res) => {
-      const {benutzerId} = req.params
-
-      const result = await prisma.benutzer.findUnique({
-         where: {
-            id: Number(benutzerId)
-         }
-      })
-   
-      res.status(200)
-      res.json(result)
-   })
-   .put(async (req, res) => {
-      const {benutzerId} = req.params
-      const {passwort} = req.body
-
-      if(passwort){
-         const result = await prisma.benutzer.update({
-            where: {
-               id: benutzerId
-            },
-            data: {
-               passwort: passwort
-            }
-         })
-      }else {
-         // Auf Standard Passwort zurücksetzen
-      }
-   })
-
-app.route('/helfer')
 app.route('/:sessiontoken/helfer')
    .get(async (req, res) => {{
       const {sessiontoken} = req.params
