@@ -88,7 +88,7 @@ model Lager {
 
 model Aufgaben {
   id             Int           @id @default(autoincrement())
-  start          DateTime
+  start          DateTime      @db.Timestamp()
   dauer          Int
   helfer_id      Int
   helfer         Helfer        @relation(fields: [helfer_id], references: [id],onDelete: Cascade)

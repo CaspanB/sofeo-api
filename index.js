@@ -4,6 +4,7 @@ const uuid = require('uuid')
 const cors = require('cors')
 const logger = require('morgan')
 const PORT = process.env.PORT || 3001;
+const HOSTNAME = '127.0.0.1'
 
 const prisma = new PrismaClient()
 const app = express()
@@ -28,11 +29,17 @@ const isValidSessiontoken = async (sessiontoken) => {
    }
 }
 
+function addMinutes(date, minutes) {
+   date.setMinutes(date.getMinutes() + minutes);
+
+   return date;
+}
+
 app.use(cors())
 app.use(express.json())
-app.use(logger('combined'))
+//app.use(logger('combined'))
 
-app.listen(PORT, () => console.log(`Sofeo API Listening on Port ${PORT}`));
+app.listen(PORT, HOSTNAME, () => console.log(`Sofeo API Listening on Port ${PORT}`));
 
 app.route('/:sessiontoken/helfer')
    .get(async (req, res) => {{
@@ -45,7 +52,10 @@ app.route('/:sessiontoken/helfer')
 
          // Also get all users --> loginname and Berechtigungen
 
-         console.log(result)
+         console.log({
+            count: count,
+            data: result
+         })
 
          res.status(200)
          res.json({
@@ -210,7 +220,7 @@ app.route('/:sessiontoken/helfer/checkin/:helferid')
          // return status
          const result = await prisma.helfer.findUnique({
             where: {
-               id: helferid
+               id: Number(helferid)
             },
             select: {
                status: true
@@ -233,10 +243,10 @@ app.route('/:sessiontoken/helfer/checkin/:helferid')
          // Change status
          const result = await prisma.helfer.update({
             where: {
-               id: helferid
+               id: Number(helferid)
             },
             data: {
-               status: status
+               status: Number(status)
             }
          })
          console.log(result)
@@ -886,11 +896,20 @@ app.route('/:sessiontoken/aufgaben')
       if(await isValidSessiontoken(sessiontoken) && start && dauer && helfer_id && aufgabentyp_id){
          const result = await prisma.aufgaben.create({
             data: {
-               start: start,
+               start: new Date(start),
                dauer: Number(dauer),
                helfer_id: Number(helfer_id),
                aufgabentyp_id: Number(aufgabentyp_id),
-               funk_id: funk_id
+               funk_id: String(funk_id),
+               helfer: {
+                  connect: {id: Number(helfer_id)}
+               },
+               aufgabentyp: {
+                  connect: {id: Number(aufgabentyp_id)}
+               },
+               funkgeraet: {
+                  connect: {id: String(funk_id)}
+               }
             }
          })
          const aufgaben_id = result.id
@@ -945,16 +964,32 @@ app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
    if(await isValidSessiontoken(sessiontoken)){
       // Active tasks
       const result = await prisma.aufgaben.findMany({
-         select: {
+         where: {
             helfer: {
-               select: {
-                  status: Number(1)
+               status: {
+                  in: [Number(1), Number(2)]
                }
             }
+         },
+         include: {
+            helfer: {
+               select: {
+                  status: true,
+                  vorname: true,
+                  nachname: true,
+                  rufname: true
+               }
+            },
+            aufgabentyp: {
+               select: {
+                  name: true
+               }
+            },
+            clone: true
          }
       })
 
-      console.log(result)
+      console.log('Aktive Aufgaben', result)
 
       res.status(200)
       res.json({
@@ -973,6 +1008,65 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
 
    if(await isValidSessiontoken(sessiontoken)){
       // Non-active tasks starting in the next 10 Minutes
+      const now = new Date() //today now
+      const loadUntilDate = new Date(addMinutes(new Date(), 10))
+      const loadFromDate = new Date(addMinutes(new Date(), -5))
+      console.log(loadUntilDate)
+      console.log(loadFromDate)
+      
+      /*const test = await prisma.aufgaben.create({
+         data: {
+            id: Number(2),
+            start: new Date(addMinutes(new Date(), 4)),
+            dauer: 36000,
+            helfer_id: 4444,
+            aufgabentyp_id: 8,
+            funk_id: 'H1'
+         }
+      })
+*/
+
+      const result = await prisma.aufgaben.findMany({
+         where: {
+            AND: {
+               start: {
+                  lte: loadUntilDate,
+                  gte: loadFromDate
+               },
+               helfer: {
+                  status: {
+                     equals: Number(0)
+                  }
+               }
+            }
+         },
+         include: {
+            helfer: {
+               select: {
+                  status: true,
+                  vorname: true,
+                  nachname: true,
+                  rufname: true
+               }
+            },
+            aufgabentyp: {
+               select: {
+                  name: true
+               }
+            },
+            clone: true
+         }
+      })
+      
+      //if(result[0].start < loadUntilDate && result[0].start > loadFromDate)
+      //console.log('YAY')
+
+      console.log('Neue Aufgaben', result)
+
+      res.status(200)
+      res.json({
+         data: result
+      })
    }else{
       res.status(404)
       res.json({
