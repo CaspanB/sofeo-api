@@ -967,7 +967,8 @@ app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
          where: {
             helfer: {
                status: {
-                  in: [Number(1), Number(2)]
+                  in: [Number(1), Number(2), Number(3)],
+                  not: null
                }
             }
          },
@@ -1026,17 +1027,11 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
       })
 */
 
-      const result = await prisma.aufgaben.findMany({
+      const request = await prisma.aufgaben.findMany({
          where: {
-            AND: {
-               start: {
-                  lte: loadUntilDate,
-                  gte: loadFromDate
-               },
-               helfer: {
-                  status: {
-                     equals: Number(0)
-                  }
+            helfer: {
+               status: {
+                  equals: 0
                }
             }
          },
@@ -1057,9 +1052,16 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
             clone: true
          }
       })
-      
-      //if(result[0].start < loadUntilDate && result[0].start > loadFromDate)
-      //console.log('YAY')
+
+      console.log(request)
+
+      const result = []
+
+      for(const [key, value] of Object.entries(request)){
+         if(value.start < loadUntilDate && value.start > loadFromDate){
+            result.push(value)
+         }
+      }
 
       console.log('Neue Aufgaben', result)
 
@@ -1454,6 +1456,9 @@ app.get('/', async (req, res) => {
 app.post('/benutzer/login', async (req, res) => {
    const {loginname, passwort} = req.body
    //passwort base-64 codiert
+
+   console.log(loginname)
+   console.log(passwort)
 
    const databaseRes = await prisma.benutzer.findFirst({
       where: {
