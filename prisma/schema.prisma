@@ -29,7 +29,6 @@ model Helfer {
   geburtstag          String    @db.VarChar(50)
   klasse              String?    @db.VarChar(50)
   rufname             String?    @db.VarChar(25)
-  status              Int?
   verfuegbareZeiten   String[]   @db.VarChar(50)
   gewuenschteAufgaben String[]   @db.VarChar(50)
   aufgaben            Aufgaben[]
@@ -39,6 +38,8 @@ model Lehrer {
   kuerzel  String  @id @db.VarChar(5)
   vorname  String? @db.VarChar(25)
   nachname String  @db.VarChar(25)
+  anrede String @db.VarChar()
+  stand Staende[]
 }
 
 model Klassen {
@@ -64,7 +65,8 @@ model Aufgabentypen {
 model Staende {
   id                 Int                  @id @default(autoincrement())
   klasse             String               @db.VarChar(6)
-  lehrer             String?              @db.VarChar(5)
+  lehrer_kuerzel             String?              @db.VarChar(5)
+  lehrer  Lehrer? @relation(fields: [lehrer_kuerzel], references: [kuerzel])
   name               String              @db.VarChar(25) @unique
   position           String?              @db.VarChar(50)
   materialienausgabe Materialienausgabe[]
@@ -89,16 +91,16 @@ model Lager {
 model Aufgaben {
   id             Int           @id @default(autoincrement())
   start          DateTime      @db.Timestamp()
-  dauer          Int
+  ende          DateTime     @db.Timestamp()
+  status Int
   helfer_id      Int
   helfer         Helfer        @relation(fields: [helfer_id], references: [id],onDelete: Cascade)
   aufgabentyp_id Int
   aufgabentyp    Aufgabentypen @relation(fields: [aufgabentyp_id], references: [id], onDelete: Cascade)
   funk_id        String?       @db.VarChar(15)
   funkgeraet     Funkgeraete?  @relation(fields: [funk_id], references: [id],onDelete: SetNull)
-  clone_id Int? @unique
-  clone Aufgaben? @relation("clones", fields: [clone_id], references: [id], onDelete: Cascade)
-  cloned Aufgaben? @relation("clones")
+  parent_id Int?
+  clone_id Int?
 }
 
 model Materialien {
