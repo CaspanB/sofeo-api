@@ -48,9 +48,14 @@ app.route('/:sessiontoken/helfer')
       if(await isValidSessiontoken(sessiontoken)){
          // Get all helpers
          const count = await prisma.helfer.count()
-         const result = await prisma.helfer.findMany()
+         const result = await prisma.helfer.findMany({
+            orderBy: {
+               rufname: 'asc'
+            }
+         })
 
          // Also get all users --> loginname and Berechtigungen
+         // NO NO - do a seperate one for users
 
          console.log({
             count: count,
@@ -175,7 +180,7 @@ app.route('/:sessiontoken/helfer/:helferid')
       }
    })
    .put(async (req, res) => {
-      const {vorname, nachname, geburtstag, klasse, rufname, status, verfuegbareZeiten, gewuenschteAufgaben} = req.body
+      const {vorname, nachname, geburtstag, klasse, rufname, verfuegbareZeiten, gewuenschteAufgaben} = req.body
       const {sessiontoken, helferid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
@@ -202,54 +207,6 @@ app.route('/:sessiontoken/helfer/:helferid')
                id: Number(helferid)
             }
          })
-
-         res.status(200)
-      }else{
-         res.status(404)
-         res.json({
-            error: 'Invalid Sessiontoken'
-         })
-      }
-   })
-
-app.route('/:sessiontoken/helfer/checkin/:helferid')
-   .get(async (req, res) => {
-      const {sessiontoken, helferid} = req.params
-
-      if(await isValidSessiontoken(sessiontoken)){
-         // return status
-         const result = await prisma.helfer.findUnique({
-            where: {
-               id: Number(helferid)
-            },
-            select: {
-               status: true
-            }
-         })
-
-         console.log(result)
-      }else{
-         res.status(404)
-         res.json({
-            error: 'Invalid Sessiontoken'
-         })
-      }
-   })
-   .put(async (req, res) => {
-      const {status} = req.body
-      const {sessiontoken, helferid} = req.params
-
-      if(await isValidSessiontoken(sessiontoken)){
-         // Change status
-         const result = await prisma.helfer.update({
-            where: {
-               id: Number(helferid)
-            },
-            data: {
-               status: Number(status)
-            }
-         })
-         console.log(result)
 
          res.status(200)
       }else{
@@ -447,7 +404,11 @@ app.route('/:sessiontoken/funkgeraete')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.funkgeraete.count()
-         const result = await prisma.funkgeraete.findMany()
+         const result = await prisma.funkgeraete.findMany({
+            orderBy: {
+               id: 'asc'
+            }
+         })
 
          console.log(result)
 
@@ -617,7 +578,14 @@ app.route('/:sessiontoken/staende')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.staende.count()
-         const result = await prisma.staende.findMany()
+         const result = await prisma.staende.findMany({
+            orderBy: {
+               klasse: 'asc'
+            },
+            include: {
+               lehrer: true
+            }
+         })
 
          console.log(result)
 
@@ -788,7 +756,22 @@ app.route('/:sessiontoken/lager')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.lager.count()
-         const result = await prisma.lager.findMany()
+         const result = await prisma.lager.findMany({
+            include: {
+               materialienausgabe: {
+                  select: {
+                     id: true,
+                     stand_id: true,
+                     stand: true,
+                     lager_id: true,
+                     lager: true,
+                     materialtyp_id: true,
+                     materialtyp: true,
+                     anzahl: true
+                  }
+               }
+            }
+         })
 
          console.log(result)
 
@@ -873,7 +856,18 @@ app.route('/:sessiontoken/aufgaben')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.aufgaben.count()
-         const result = await prisma.aufgaben.findMany()
+         const result = await prisma.aufgaben.findMany({
+            orderBy: {
+               aufgabentyp: {
+                  name: 'asc'
+               }
+            },
+            include: {
+               helfer: true,
+               aufgabentyp: true,
+               funkgeraet: true
+            }
+         })
 
          console.log(result)
 
@@ -891,63 +885,133 @@ app.route('/:sessiontoken/aufgaben')
    })
    .post(async (req, res) => {
       const {sessiontoken} = req.params
-      const {start, dauer, helfer_id, aufgabentyp_id, funk_id} = req.body
+      const {start, ende, helfer_id, aufgabentyp_id, funk_id, parent_id, status} = req.body
 
-      if(await isValidSessiontoken(sessiontoken) && start && dauer && helfer_id && aufgabentyp_id){
-         const result = await prisma.aufgaben.create({
-            data: {
-               start: new Date(start),
-               dauer: Number(dauer),
-               helfer_id: Number(helfer_id),
-               aufgabentyp_id: Number(aufgabentyp_id),
-               funk_id: String(funk_id),
-               helfer: {
-                  connect: {id: Number(helfer_id)}
-               },
-               aufgabentyp: {
-                  connect: {id: Number(aufgabentyp_id)}
-               },
-               funkgeraet: {
-                  connect: {id: String(funk_id)}
-               }
-            }
-         })
-         const aufgaben_id = result.id
-         
-         const connectHelfer = await prisma.helfer.update({
-            where: {
-               id: Number(helfer_id)
-            },
-            data: {
-               aufgaben: {
-                  connect: {id: Number(aufgaben_id)}
-               }
-            }
-         })
+      console.log(req.body)
 
-         const connectAufgabentyp = await prisma.aufgabentypen.update({
-            where: {
-               id: Number(aufgabentyp_id)
-            },
-            data: {
-               aufgaben: {
-                  connect: {id: Number(aufgaben_id)}
-               }
-            }
-         })
-
-         if(funk_id){
-            const connnectFunkgeraet = await prisma.funkgeraete.update({
+      if(await isValidSessiontoken(sessiontoken) && start && ende && helfer_id && aufgabentyp_id){
+         if(parent_id){
+            const getParent = await prisma.aufgaben.findUnique({
                where: {
-                  id: funk_id
-               },
-               data: {
-                  aufgaben: {
-                     connect: {id: Number(aufgaben_id)}
-                  }
+                  id: Number(parent_id)
                }
             })
+
+            if(getParent.parent_id === null){
+               const result = await prisma.aufgaben.create({
+                  data: {
+                     start: new Date(start),
+                     ende: new Date(ende),
+                     status: Number(status),
+                     helfer_id: Number(helfer_id),
+                     aufgabentyp_id: Number(aufgabentyp_id),
+                     funk_id: String(funk_id),
+                     parent_id: Number(parent_id)
+                  }
+               })
+
+               const changeParent = await prisma.aufgaben.update({
+                  where: {
+                     id: Number(parent_id)
+                  },
+                  data: {
+                     clone_id: result.id
+                  }
+               })
+
+               console.log(result)
+            }else{
+               const result = await prisma.aufgaben.create({
+                  data: {
+                     start: new Date(start),
+                     ende: new Date(ende),
+                     status: Number(status),
+                     helfer_id: Number(helfer_id),
+                     aufgabentyp_id: Number(aufgabentyp_id),
+                     funk_id: String(funk_id),
+                     parent_id: Number(getParent.parent_id)
+                  }
+               })
+
+               const changeParent = await prisma.aufgaben.update({
+                  where: {
+                     id: Number(getParent.parent_id)
+                  },
+                  data: {
+                     clone_id: result.id
+                  }
+               })
+
+               const deleteMiddleClone = await prisma.aufgaben.delete({
+                  where: {
+                     id: Number(parent_id)
+                  }
+               })
+               
+               console.log(result)
+            }
+         }else{
+            const result = await prisma.aufgaben.create({
+               data: {
+                  start: new Date(start),
+                  ende: new Date(ende),
+                  status: Number(status),
+                  helfer_id: Number(helfer_id),
+                  aufgabentyp_id: Number(aufgabentyp_id),
+                  funk_id: String(funk_id)
+               }
+            })
+
+            console.log(result)
          }
+
+         res.status(200)
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+
+app.route('/:sessiontoken/aufgaben/checkin/:aufgabenid')
+   .get(async (req, res) => {
+      const {sessiontoken, aufgabenid} = req.params
+
+      if(await isValidSessiontoken(sessiontoken)){
+         // return status
+         const result = await prisma.aufgaben.findUnique({
+            where: {
+               id: Number(aufgabenid)
+            },
+            select: {
+               status: true
+            }
+         })
+
+         console.log(result)
+      }else{
+         res.status(404)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   })
+   .put(async (req, res) => {
+      const {status} = req.body
+      const {sessiontoken, aufgabenid} = req.params
+
+      if(await isValidSessiontoken(sessiontoken)){
+         // Change status
+         const result = await prisma.aufgaben.update({
+            where: {
+               id: Number(aufgabenid)
+            },
+            data: {
+               status: Number(status)
+            }
+         })
+         console.log(result)
 
          res.status(200)
       }else{
@@ -965,28 +1029,19 @@ app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
       // Active tasks
       const result = await prisma.aufgaben.findMany({
          where: {
-            helfer: {
-               status: {
-                  in: [Number(1), Number(2), Number(3)],
-                  not: null
-               }
+            status: {
+               in: [Number(1), Number(2), Number(3)]
             }
          },
          include: {
             helfer: {
                select: {
-                  status: true,
                   vorname: true,
                   nachname: true,
                   rufname: true
                }
             },
-            aufgabentyp: {
-               select: {
-                  name: true
-               }
-            },
-            clone: true
+            aufgabentyp: true
          }
       })
 
@@ -1012,33 +1067,18 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
       const now = new Date() //today now
       const loadUntilDate = new Date(addMinutes(new Date(), 10))
       const loadFromDate = new Date(addMinutes(new Date(), -5))
-      console.log(loadUntilDate)
-      console.log(loadFromDate)
-      
-      /*const test = await prisma.aufgaben.create({
-         data: {
-            id: Number(2),
-            start: new Date(addMinutes(new Date(), 4)),
-            dauer: 36000,
-            helfer_id: 4444,
-            aufgabentyp_id: 8,
-            funk_id: 'H1'
-         }
-      })
-*/
+      // console.log(loadUntilDate)
+      // console.log(loadFromDate)
 
       const request = await prisma.aufgaben.findMany({
          where: {
-            helfer: {
-               status: {
+            status: {
                   equals: 0
-               }
             }
          },
          include: {
             helfer: {
                select: {
-                  status: true,
                   vorname: true,
                   nachname: true,
                   rufname: true
@@ -1048,8 +1088,7 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
                select: {
                   name: true
                }
-            },
-            clone: true
+            }
          }
       })
 
@@ -1077,12 +1116,73 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
    }
 })
 
+app.get('/:sessiontoken/aufgaben/helfer', async (req, res) => {
+   const {sessiontoken} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      // Get all helpers with id and with their tasks
+      const result = await prisma.helfer.findMany({
+         include: {
+            aufgaben: true
+         }
+      })
+
+      console.log(result)
+
+      res.status(200)
+      res.json({
+         data: result
+      })
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+
+app.get('/:sessiontoken/aufgaben/funkgeraete', async (req, res) => {
+   const {sessiontoken} = req.params
+
+   if(isValidSessiontoken(sessiontoken)){
+      // Get all helpers with id and with their tasks
+      const result = await prisma.funkgeraete.findMany({
+         include: {
+            aufgaben: true
+         }
+      })
+
+      console.log(result)
+
+      res.status(200)
+      res.json({
+         data: result
+      })
+   }else{
+      res.status(404)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+
 app.route('/:sessiontoken/aufgaben/:aufgabenid')
    .get(async (req, res) => {
       const {sessiontoken, aufgabenid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         const result = await prisma.aufgaben.findUnique({
+            where: {
+               id: aufgabenid
+            }
+         })
 
+         console.log(result)
+
+         res.status(200)
+         res.json({
+            data: result
+         })
       }else{
          res.status(404)
          res.json({
@@ -1106,11 +1206,28 @@ app.route('/:sessiontoken/aufgaben/:aufgabenid')
       const {sessiontoken, aufgabenid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
-         const result = await prisma.aufgaben.delete({
+         const getParent = await prisma.aufgaben.findUnique({
             where: {
                id: Number(aufgabenid)
             }
          })
+
+         if(getParent.parent_id === null){
+            const result = await prisma.aufgaben.delete({
+               where: {
+                  id: Number(aufgabenid)
+               }
+            })
+         }else{
+            const result = await prisma.aufgaben.deleteMany({
+               where: {
+                  AND: [
+                     {id: Number(aufgabenid)},
+                     {id: Number(getParent.parent_id)}
+                  ]
+               }
+            })
+         }
 
          res.status(200)
       }else{
