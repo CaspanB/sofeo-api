@@ -67,7 +67,7 @@ model Staende {
   klasse             String               @db.VarChar(6)
   lehrer_kuerzel             String?              @db.VarChar(5)
   lehrer  Lehrer? @relation(fields: [lehrer_kuerzel], references: [kuerzel])
-  name               String              @db.VarChar(25) @unique
+  name               String              @db.VarChar(50) @unique
   position           String?              @db.VarChar(50)
   materialienausgabe Materialienausgabe[]
 }
