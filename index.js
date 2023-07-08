@@ -51,6 +51,17 @@ app.route('/:sessiontoken/helfer')
          const result = await prisma.helfer.findMany({
             orderBy: {
                rufname: 'asc'
+            },
+            include: {
+               aufgaben: {
+                  include: {
+                     aufgabentyp: true,
+                     funkgeraet: true,
+                  },
+                  orderBy: {
+                     start: 'asc'
+                  }
+               }
             }
          })
 
@@ -857,11 +868,16 @@ app.route('/:sessiontoken/aufgaben')
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.aufgaben.count()
          const result = await prisma.aufgaben.findMany({
-            orderBy: {
-               aufgabentyp: {
-                  name: 'asc'
+            orderBy: [
+               {
+                  aufgabentyp: {
+                     name: 'asc'
+                  }
+               },
+               {
+                  start: 'asc'
                }
-            },
+            ],
             include: {
                helfer: true,
                aufgabentyp: true,
@@ -1042,6 +1058,9 @@ app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
                }
             },
             aufgabentyp: true
+         },
+         orderBy: {
+            start: 'asc'
          }
       })
 
@@ -1065,7 +1084,7 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
    if(await isValidSessiontoken(sessiontoken)){
       // Non-active tasks starting in the next 10 Minutes
       const now = new Date() //today now
-      const loadUntilDate = new Date(addMinutes(new Date(), 10))
+      const loadUntilDate = new Date(addMinutes(new Date(), 30))
       const loadFromDate = new Date(addMinutes(new Date(), -5))
       // console.log(loadUntilDate)
       // console.log(loadFromDate)
@@ -1089,6 +1108,9 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
                   name: true
                }
             }
+         },
+         orderBy: {
+            start: 'asc'
          }
       })
 
