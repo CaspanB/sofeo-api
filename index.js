@@ -1,8 +1,9 @@
-const { PrismaClient } = require('@prisma/client')
-const express = require('express')
-const uuid = require('uuid')
-const cors = require('cors')
-const logger = require('morgan')
+import { PrismaClient } from '@prisma/client'
+import express from 'express'
+import {v4 as uuidv4} from 'uuid'
+import cors from 'cors'
+import logger from 'morgan'
+import fetch from 'node-fetch'
 const PORT = process.env.PORT || 3001;
 const HOSTNAME = '127.0.0.1'
 
@@ -35,11 +36,86 @@ function addMinutes(date, minutes) {
    return date;
 }
 
+const compareArrays = (a, b) => {
+   return a.toString() === b.toString()
+   // return JSON.stringify(a) === JSON.stringify(b);
+};
+
+const getSommerfestTag = (ferien) => {
+   if(ferien.length > 0){
+      const sommerferien = ferien.filter(function(holiday){
+         return holiday.name.includes('sommerferien') && holiday.year >= (new Date().getUTCFullYear())
+      })
+
+      let thisYearStart = new Date(sommerferien[0].start)
+      if(thisYearStart < new Date()){
+         thisYearStart = new Date(sommerferien[1].start)
+      }
+
+      if(thisYearStart.getUTCDay() === 0){
+         thisYearStart.setUTCDate(thisYearStart.getUTCDate() - 4)
+      }else{
+         thisYearStart.setUTCDate(thisYearStart.getUTCDate() - 2)
+      }
+
+      return thisYearStart
+   }
+}
+
 app.use(cors())
 app.use(express.json())
 //app.use(logger('combined'))
 
 app.listen(PORT, HOSTNAME, () => console.log(`Sofeo API Listening on Port ${PORT}`));
+
+app.route('/:sessiontoken/benutzer')
+   .get(async (req, res) => {{
+      const {sessiontoken} = req.params
+
+      if(await isValidSessiontoken(sessiontoken)){
+         const helfer = await prisma.helfer.findMany()
+         const benutzer = await prisma.benutzer.findMany({
+            orderBy: {
+               loginname: 'asc'
+            }
+         })
+         
+         const result = []
+
+         for (let indexBenutzer = 0; indexBenutzer < benutzer.length; indexBenutzer++) {
+            const elementBenutzer = benutzer[indexBenutzer];
+            for (let indexHelfer = 0; indexHelfer < helfer.length; indexHelfer++) {
+               const elementHelfer = helfer[indexHelfer];
+               if(elementBenutzer.id === elementHelfer.id){
+                  result.push({
+                     id: elementHelfer.id,
+                     vorname: elementHelfer.vorname,
+                     nachname: elementHelfer.nachname,
+                     rufname: elementHelfer.rufname,
+                     loginname: elementBenutzer.loginname,
+                     geburtstag: elementHelfer.geburtstag,
+                     klasse: elementHelfer.klasse,
+                     verfuegbareZeiten: elementHelfer.verfuegbareZeiten,
+                     gewuenschteAufgaben: elementHelfer.gewuenschteAufgaben,
+                     berechtigungen: elementBenutzer.berechtigungen,
+                  })
+               }
+            }
+         }
+
+         console.log(result)
+
+         res.status(200)
+         res.json({
+            data: result
+         })
+      }else{
+         res.status(401)
+         res.json({
+            error: 'Invalid Sessiontoken'
+         })
+      }
+   }})
 
 app.route('/:sessiontoken/helfer')
    .get(async (req, res) => {{
@@ -56,12 +132,15 @@ app.route('/:sessiontoken/helfer')
                aufgaben: {
                   include: {
                      aufgabentyp: true,
-                     funkgeraet: true,
+                     funkgeraet: true
                   },
                   orderBy: {
                      start: 'asc'
                   }
                }
+            },
+            orderBy: {
+               vorname: 'asc'
             }
          })
 
@@ -79,7 +158,7 @@ app.route('/:sessiontoken/helfer')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -95,12 +174,12 @@ app.route('/:sessiontoken/helfer')
          if(verfuegbareZeiten)
             Zeiten = verfuegbareZeiten
          let Aufgaben = []
-         if(gewuenschteAufgaben)
-            Aufgaben = gewuenschteAufgaben
+         if(gewuenschteAufgaben && gewuenschteAufgaben != "")
+            Aufgaben = gewuenschteAufgaben.split(',')
 
          let berechtigungenForm = [0,1,0,0]
          if(berechtigungen)
-            berechtigungenForm = Array.from(String(berechtigungen), Number)
+            berechtigungenForm = berechtigungen
 
          const loginname = vorname.toLowerCase() + '.' + nachname.toLowerCase()
 
@@ -117,11 +196,11 @@ app.route('/:sessiontoken/helfer')
             const result = await prisma.helfer.create({
                data: {
                   id: Number(id),
-                  vorname: vorname,
-                  nachname: nachname,
+                  vorname: vorname.toLowerCase(),
+                  nachname: nachname.toLowerCase(),
                   geburtstag: geburtstag,
                   klasse: klasse,
-                  rufname: rufname,
+                  rufname: rufname.toLowerCase(),
                   verfuegbareZeiten: Zeiten,
                   gewuenschteAufgaben: Aufgaben
                }
@@ -134,7 +213,7 @@ app.route('/:sessiontoken/helfer')
             const user = await prisma.benutzer.create({
                data: {
                   loginname: loginname,
-                  passwort: String(geburtstag),
+                  passwort: String(btoa(geburtstag)),
                   berechtigungen: berechtigungenForm
                }
             })
@@ -142,11 +221,11 @@ app.route('/:sessiontoken/helfer')
             const result = await prisma.helfer.create({
                data: {
                   id: Number(user.id),
-                  vorname: vorname,
-                  nachname: nachname,
+                  vorname: vorname.toLowerCase(),
+                  nachname: nachname.toLowerCase(),
                   geburtstag: geburtstag,
                   klasse: klasse,
-                  rufname: rufname,
+                  rufname: rufname.toLowerCase(),
                   verfuegbareZeiten: Zeiten,
                   gewuenschteAufgaben: Aufgaben
                }
@@ -159,7 +238,7 @@ app.route('/:sessiontoken/helfer')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -174,30 +253,110 @@ app.route('/:sessiontoken/helfer/:helferid')
          const result = await prisma.helfer.findUnique({
             where: {
                id: Number(helferid)
+            },
+            include: {
+               aufgaben: {
+                  include: {
+                     aufgabentyp: true,
+                     funkgeraet: true
+                  },
+                  orderBy: {
+                     start: 'asc'
+                  }
+               }
             }
          })
 
          console.log(result)
 
          res.status(200)
-         res.json({
-            data: result
-         })
+         res.json(result)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
       }
    })
    .put(async (req, res) => {
-      const {vorname, nachname, geburtstag, klasse, rufname, verfuegbareZeiten, gewuenschteAufgaben} = req.body
+      const {vorname, nachname, geburtstag, klasse, rufname, verfuegbareZeiten, gewuenschteAufgaben, berechtigungen} = req.body
       const {sessiontoken, helferid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         const helfer = await prisma.helfer.findUnique({
+            where: {
+               id: Number(helferid)
+            }
+         })
+         const benutzer = await prisma.benutzer.findUnique({
+            where: {
+               id: Number(helferid)
+            }
+         })
+
+         const helferUpdate = {}
+         const benutzerUpdate = {}
+
+         if(vorname && helfer.vorname !== vorname.toLowerCase()){
+            helferUpdate.vorname = vorname.toLowerCase()
+            benutzerUpdate.loginname = `${vorname.toLowerCase()}.${nachname.toLowerCase()}`
+         }
+
+         if(nachname && helfer.nachname !== nachname.toLowerCase()){
+            helferUpdate.nachname = nachname.toLowerCase()
+            benutzerUpdate.loginname = `${vorname.toLowerCase()}.${nachname.toLowerCase()}`
+         }
+
+         if(((rufname && helfer.rufname) && (helfer.rufname !== rufname.toLowerCase())) || (rufname && !helfer.rufname)){
+            helferUpdate.rufname = rufname.toLowerCase()
+         }
          
+         if(geburtstag && helfer.geburtstag !== geburtstag){
+            helferUpdate.geburtstag = geburtstag
+            if(benutzer.passwort === btoa(helfer.geburtstag)){
+               benutzerUpdate.passwort = btoa(geburtstag)
+            }
+         }
+         
+         if(((klasse && helfer.klasse) && (helfer.klasse !== klasse)) || (klasse && !helfer.klasse)){
+            helferUpdate.klasse = klasse
+         }
+         
+         if(verfuegbareZeiten && !compareArrays(verfuegbareZeiten, helfer.verfuegbareZeiten)){
+            helferUpdate.verfuegbareZeiten = verfuegbareZeiten
+         }
+         
+         if(gewuenschteAufgaben && !compareArrays(gewuenschteAufgaben, helfer.gewuenschteAufgaben)){
+            helferUpdate.gewuenschteAufgaben = gewuenschteAufgaben
+         }
+         
+         if(berechtigungen && !compareArrays(benutzer.berechtigungen, berechtigungen)){
+            benutzerUpdate.berechtigungen = berechtigungen
+         }
+
+         console.log('Helferupdate: ', helferUpdate)
+         console.log('Benutzerupdate: ', benutzerUpdate)
+
+         const resultUser = await prisma.benutzer.update({
+            where: {
+               id: Number(helferid)
+            },
+            data: benutzerUpdate
+         })
+
+         const resultHelfer = await prisma.helfer.update({
+            where: {
+               id: Number(helferid)
+            },
+            data: helferUpdate
+         })
+         
+         console.log(resultUser)
+         console.log(resultHelfer)
+
+         res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -221,7 +380,7 @@ app.route('/:sessiontoken/helfer/:helferid')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -234,7 +393,18 @@ app.route('/:sessiontoken/lehrer')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.lehrer.count()
-         const result = await prisma.lehrer.findMany()
+         const result = await prisma.lehrer.findMany({
+            include: {
+               staende: {
+                  include: {
+                     klasse: true
+                  }
+               }
+            },
+            orderBy: {
+               kuerzel: 'asc'
+            }
+         })
 
          console.log(result)
 
@@ -244,7 +414,7 @@ app.route('/:sessiontoken/lehrer')
             data: result
          })
       }else{
-         res.status(404),
+         res.status(401),
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -252,20 +422,21 @@ app.route('/:sessiontoken/lehrer')
    })
    .post(async (req, res) => {
       const {sessiontoken} = req.params
-      const {kuerzel, vorname, nachname} = req.body
+      const {kuerzel, vorname, nachname, anrede} = req.body
 
-      if(await isValidSessiontoken(sessiontoken) && kuerzel && nachname){
+      if(await isValidSessiontoken(sessiontoken) && kuerzel && nachname && anrede){
          const result = await prisma.lehrer.create({
             data: {
                kuerzel: kuerzel,
                vorname: vorname,
-               nachname: nachname
+               nachname: nachname,
+               anrede: anrede
             }
          })
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -279,19 +450,55 @@ app.route('/:sessiontoken/lehrer/:lehrerkuerzel')
       if(await isValidSessiontoken(sessiontoken)){
 
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
       }
    })
    .put(async (req, res) => {
+      const {kuerzel, vorname, nachname, anrede} = req.body
       const {sessiontoken, lehrerkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         const lehrer = await prisma.lehrer.findUnique({
+            where: {
+               kuerzel: lehrerkuerzel
+            }
+         })
+         
+         const lehrerUpdate = {}
+         
+         if(kuerzel && kuerzel !== lehrer.kuerzel){
+            lehrerUpdate.kuerzel = kuerzel
+         }
 
+         if(((vorname && lehrer.vorname) && (vorname.toLowerCase() !== lehrer.vorname.toLowerCase())) || (vorname && !lehrer.vorname)){
+            lehrerUpdate.vorname = vorname.toLowerCase()
+         }
+
+         if(nachname && nachname.toLowerCase() !== lehrer.nachname.toLowerCase()){
+            lehrerUpdate.nachname = nachname.toLowerCase()
+         }
+
+         if(anrede && anrede !== lehrer.anrede){
+            lehrerUpdate.anrede = anrede
+         }
+         
+         console.log('Lehrerupdate: ', lehrerUpdate)
+         
+         const result = await prisma.lehrer.update({
+            where: {
+               kuerzel: lehrerkuerzel
+            },
+            data: lehrerUpdate
+         })
+
+         console.log(result)
+
+         res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -309,7 +516,7 @@ app.route('/:sessiontoken/lehrer/:lehrerkuerzel')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -322,7 +529,15 @@ app.route('/:sessiontoken/klassen')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.klassen.count()
-         const result = await prisma.klassen.findMany()
+         const result = await prisma.klassen.findMany({
+            include: {
+               stand: {
+                  include: {
+                     lehrer: true
+                  }
+               }
+            }
+         })
 
          console.log(result)
 
@@ -332,7 +547,7 @@ app.route('/:sessiontoken/klassen')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -340,25 +555,18 @@ app.route('/:sessiontoken/klassen')
    })
    .post(async (req, res) => {
       const {sessiontoken} = req.params
-      const {kuerzel, klassenstufe, klasse, stand_name} = req.body
-
-      const stand_id = await prisma.staende.findUnique({
-         where: {
-            name: stand_name
-         }
-      })
+      const {kuerzel, klassenstufe, klasse} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && kuerzel && klassenstufe && klasse){
          const result = await prisma.klassen.create({
             data: {
                kuerzel: kuerzel,
                klassenstufe: Number(klassenstufe),
-               klasse: klasse,
-               stand_id: stand_id.id
+               klasse: klasse
             }
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -370,21 +578,79 @@ app.route('/:sessiontoken/klassen/:klassenkuerzel')
       const {sessiontoken, klassenkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         const result = await prisma.klassen.findUnique({
+            where: {
+               kuerzel: klassenkuerzel
+            },
+            include: {
+               stand: {
+                  include: {
+                     klasse: true,
+                     lehrer: true,
+                     materialienausgabe: {
+                        include: {
+                           lager: true,
+                           materialtyp: true
+                        }
+                     }
+                  }
+               }
+            }
+         })
 
+         console.log('klasse: ', result)
+         res.status(200)
+         if(result){
+            res.json(result)
+         }else{
+            res.json({})
+         }
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
       }
    })
    .put(async (req, res) => {
+      const {kuerzel, klassenstufe, klasse} = req.body
       const {sessiontoken, klassenkuerzel} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         const resKlasse = await prisma.klassen.findUnique({
+            where: {
+               kuerzel: klassenkuerzel
+            }
+         })
+         
+         const klassenUpdate = {}
+         
+         if(kuerzel && kuerzel !== resKlasse.kuerzel){
+            klassenUpdate.kuerzel = kuerzel
+         }
+         
+         if(klassenstufe && Number(klassenstufe) !== Number(resKlasse.klassenstufe)){
+            klassenUpdate.klassenstufe = Number(klassenstufe)
+         }
+         
+         if(klasse && klasse !== resKlasse.klasse){
+            klassenUpdate.klasse = klasse
+         }
+         
+         console.log('Klassenupdate: ', klassenUpdate)
+         
+         const result = await prisma.klassen.update({
+            where: {
+               kuerzel: klassenkuerzel
+            },
+            data: klassenUpdate
+         })
 
+         console.log(result)
+
+         res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -402,7 +668,7 @@ app.route('/:sessiontoken/klassen/:klassenkuerzel')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -418,6 +684,18 @@ app.route('/:sessiontoken/funkgeraete')
          const result = await prisma.funkgeraete.findMany({
             orderBy: {
                id: 'asc'
+            },
+            include: {
+               aufgaben: {
+                  include: {
+                     aufgabentyp: true,
+                     funkgeraet: true,
+                     helfer: true
+                  },
+                  orderBy: {
+                     start: 'asc'
+                  }
+               }
             }
          })
 
@@ -429,7 +707,7 @@ app.route('/:sessiontoken/funkgeraete')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -447,7 +725,7 @@ app.route('/:sessiontoken/funkgeraete')
             }
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -461,19 +739,47 @@ app.route('/:sessiontoken/funkgeraete/:funkid')
       if(await isValidSessiontoken(sessiontoken)){
 
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
       }
    })
    .put(async (req, res) => {
+      const {id, festid} = req.body
       const {sessiontoken, funkid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         const funkgeraet = await prisma.funkgeraete.findUnique({
+            where: {
+               id: funkid
+            }
+         })
+         
+         const funkgeraetUpdate = {}
+         
+         if(id && funkgeraet.id !== id){
+            funkgeraetUpdate.id = id
+         }
 
+         if(((festid && funkgeraet.festid) && (funkgeraet.festid !== festid)) || (festid && !funkgeraet.festid)){
+            funkgeraetUpdate.festid = festid
+         }
+         
+         console.log('Funkgerätupdate: ', funkgeraetUpdate)
+         
+         const result = await prisma.funkgeraete.update({
+            where: {
+               id: id
+            },
+            data: funkgeraetUpdate
+         })
+
+         console.log(result)
+
+         res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -491,7 +797,7 @@ app.route('/:sessiontoken/funkgeraete/:funkid')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -504,7 +810,20 @@ app.route('/:sessiontoken/aufgabentypen')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.aufgabentypen.count()
-         const result = await prisma.aufgabentypen.findMany()
+         const result = await prisma.aufgabentypen.findMany({
+            include: {
+               aufgaben: {
+                  include: {
+                     helfer: true,
+                     aufgabentyp: true,
+                     funkgeraet: true
+                  }
+               }
+            },
+            orderBy: {
+               id: 'asc'
+            }
+         })
 
          console.log(result)
 
@@ -514,7 +833,7 @@ app.route('/:sessiontoken/aufgabentypen')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -534,7 +853,7 @@ app.route('/:sessiontoken/aufgabentypen')
          
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -548,7 +867,7 @@ app.route('/:sessiontoken/aufgabentypen/:typid')
       if(await isValidSessiontoken(sessiontoken)){
 
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -556,11 +875,41 @@ app.route('/:sessiontoken/aufgabentypen/:typid')
    })
    .put(async (req, res) => {
       const {sessiontoken, typid} = req.params
+      const {name, beschreibung} = req.body
 
       if(await isValidSessiontoken(sessiontoken)){
+         const aufgabentyp = await prisma.aufgabentypen.findUnique({
+            where: {
+               id: Number(typid)
+            }
+         })
 
+         const aufgabentypUpdate = {}
+
+         if(name && name.toLowerCase() !== aufgabentyp.name.toLowerCase()){
+            aufgabentypUpdate.name = name
+         }
+
+         if(((beschreibung && aufgabentyp.beschreibung) && beschreibung.toLowerCase() !== aufgabentyp.beschreibung.toLowerCase()) || (beschreibung && !aufgabentyp.beschreibung)){
+            aufgabentypUpdate.beschreibung = beschreibung
+         }else if(!beschreibung && aufgabentyp.beschreibung){
+            aufgabentypUpdate.beschreibung = String()
+         }
+         
+         console.log('Aufgabentypupdate: ', aufgabentypUpdate)
+         
+         const result = await prisma.aufgabentypen.update({
+            where: {
+               id: Number(typid)
+            },
+            data: aufgabentypUpdate
+         })
+
+         console.log(result)
+
+         res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -576,7 +925,7 @@ app.route('/:sessiontoken/aufgabentypen/:typid')
             }
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -591,9 +940,12 @@ app.route('/:sessiontoken/staende')
          const count = await prisma.staende.count()
          const result = await prisma.staende.findMany({
             orderBy: {
-               klasse: 'asc'
+               klasse: {
+                  kuerzel: 'asc'
+               }
             },
             include: {
+               klasse: true,
                lehrer: true
             }
          })
@@ -606,7 +958,7 @@ app.route('/:sessiontoken/staende')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -616,19 +968,31 @@ app.route('/:sessiontoken/staende')
       const {sessiontoken} = req.params
       const {klasse, lehrer, name, position} = req.body
 
-      if(await isValidSessiontoken(sessiontoken) && klasse){
+      if(await isValidSessiontoken(sessiontoken)){
+
+         const stand = {
+            name: name
+         }
+
+         if(position){
+            stand.position = postition
+         }
+
+         if(klasse){
+            stand.klassen_kuerzel = klasse
+         }
+
+         if(lehrer){
+            stand.lehrer_kuerzel = lehrer
+         }
+
          const result = await prisma.staende.create({
-            data: {
-               klasse: klasse,
-               lehrer: lehrer,
-               name: name,
-               position: position
-            }
+            data: stand
          })
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -642,19 +1006,55 @@ app.route('/:sessiontoken/staende/:standid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
    }
 })
 .put(async (req, res) => {
+   const {name, position, klasse, lehrer} = req.body
    const {sessiontoken, standid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
+      const stand = await prisma.staende.findUnique({
+         where: {
+            id: Number(standid)
+         }
+      })
+      
+      const standUpdate = {}
+      
+      if(name && name.toLowerCase() !== stand.name.toLowerCase()){
+         standUpdate.name = name
+      }
 
+      if(((position && stand.position) && (position !== stand.position)) || (position && !stand.position)){
+         standUpdate.position = position
+      }
+
+      if(((stand.klasse && klasse) && (klasse !== stand.klasse.kuerzel)) || (klasse && !stand.klasse)){
+         standUpdate.klassen_kuerzel = klasse
+      }
+
+      if(((stand.lehrer && lehrer) && (lehrer !== stand.lehrer.kuerzel)) || (lehrer && !stand.lehrer)){
+         standUpdate.lehrer_kuerzel = lehrer
+      }
+      
+      console.log('Standupdate: ', standUpdate)
+      
+      const result = await prisma.staende.update({
+         where: {
+            id: Number(standid)
+         },
+         data: standUpdate
+      })
+
+      console.log(result)
+
+      res.status(200)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -669,8 +1069,10 @@ app.route('/:sessiontoken/staende/:standid')
             id: Number(standid)
          }
       })
+
+      res.status(200)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -693,7 +1095,7 @@ app.route('/:sessiontoken/materialtypen')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -712,7 +1114,7 @@ app.route('/:sessiontoken/materialtypen')
          })
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -726,7 +1128,7 @@ app.route('/:sessiontoken/materialtypen/:typid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -738,7 +1140,7 @@ app.route('/:sessiontoken/materialtypen/:typid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -754,7 +1156,7 @@ app.route('/:sessiontoken/materialtypen/:typid')
          }
       })
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -792,7 +1194,7 @@ app.route('/:sessiontoken/lager')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          req.json({
             error: 'Invalid Sessiontoken'
          })
@@ -812,7 +1214,7 @@ app.route('/:sessiontoken/lager')
 
          req.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          req.json({
             error: 'Invalid Sessiontoken'
          })
@@ -826,7 +1228,7 @@ app.route('/:sessiontoken/lager/:lagerid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -838,7 +1240,7 @@ app.route('/:sessiontoken/lager/:lagerid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -854,7 +1256,7 @@ app.route('/:sessiontoken/lager/:lagerid')
          }
       })
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -870,12 +1272,12 @@ app.route('/:sessiontoken/aufgaben')
          const result = await prisma.aufgaben.findMany({
             orderBy: [
                {
+                  start: 'asc'
+               },
+               {
                   aufgabentyp: {
                      name: 'asc'
                   }
-               },
-               {
-                  start: 'asc'
                }
             ],
             include: {
@@ -893,7 +1295,7 @@ app.route('/:sessiontoken/aufgaben')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -983,7 +1385,7 @@ app.route('/:sessiontoken/aufgaben')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1007,7 +1409,7 @@ app.route('/:sessiontoken/aufgaben/checkin/:aufgabenid')
 
          console.log(result)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1031,7 +1433,7 @@ app.route('/:sessiontoken/aufgaben/checkin/:aufgabenid')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1071,7 +1473,7 @@ app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
          data: result
       })
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1082,6 +1484,7 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
    const {sessiontoken} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
+      /* 
       // Non-active tasks starting in the next 10 Minutes
       const now = new Date() //today now
       const loadUntilDate = new Date(addMinutes(new Date(), 30))
@@ -1130,33 +1533,78 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
       res.json({
          data: result
       })
-   }else{
-      res.status(404)
-      res.json({
-         error: 'Invalid Sessiontoken'
-      })
-   }
-})
+      */
+      const ferienReq = await fetch(`https://ferien-api.de/api/v1/holidays/SN`)
+      const ferien = await ferienReq.json()
+      
+      const sommerfesttag = getSommerfestTag(ferien)
 
-app.get('/:sessiontoken/aufgaben/helfer', async (req, res) => {
-   const {sessiontoken} = req.params
-
-   if(isValidSessiontoken(sessiontoken)){
-      // Get all helpers with id and with their tasks
-      const result = await prisma.helfer.findMany({
+      // Non-active tasks starting in the next 10 Minutes
+      const now = new Date() //today now
+      const request = await prisma.aufgaben.findMany({
+         where: {
+            status: {
+                  equals: 0
+            }
+         },
          include: {
-            aufgaben: true
+            helfer: {
+               select: {
+                  vorname: true,
+                  nachname: true,
+                  rufname: true
+               }
+            },
+            aufgabentyp: {
+               select: {
+                  name: true
+               }
+            }
+         },
+         orderBy: {
+            start: 'asc'
          }
       })
+      
+      console.log(request)
 
-      console.log(result)
+      const result = []
+      
+      if(new Date(sommerfesttag).toDateString() === now.toDateString()){
+         const loadUntilDate = new Date(addMinutes(new Date(), 30))
+         const loadFromDate = new Date(addMinutes(new Date(), -5))
+         // console.log(loadUntilDate)
+         // console.log(loadFromDate)
+
+         for(const [key, value] of Object.entries(request)){
+            if(value.start < loadUntilDate && value.start > loadFromDate){
+               result.push(value)
+            }
+         }
+      }else{
+         const start = new Date(request[0].start)
+         start.setMilliseconds(0)
+         start.setSeconds(0)
+
+         for(const [key, value] of Object.entries(request)){
+            const aufgabeStart = new Date(value.start)
+            aufgabeStart.setMilliseconds(0)
+            aufgabeStart.setSeconds(0)
+
+            if(aufgabeStart.toTimeString() === start.toTimeString() && new Date(sommerfesttag).toDateString() === new Date(aufgabeStart).toDateString()){
+               result.push(value)
+            }
+         }
+      }
+
+      console.log('Neue Aufgaben', result)
 
       res.status(200)
       res.json({
          data: result
       })
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1181,7 +1629,7 @@ app.get('/:sessiontoken/aufgaben/funkgeraete', async (req, res) => {
          data: result
       })
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1206,7 +1654,7 @@ app.route('/:sessiontoken/aufgaben/:aufgabenid')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1214,11 +1662,56 @@ app.route('/:sessiontoken/aufgaben/:aufgabenid')
    })
    .put(async (req, res) => {
       const {sessiontoken, aufgabenid} = req.params
+      const {start, ende, status, helfer_id, aufgabentyp_id, funk_id} = req.body
 
       if(await isValidSessiontoken(sessiontoken)){
+         const aufgabe = await prisma.aufgaben.findUnique({
+            where: {
+               id: Number(aufgabenid)
+            }
+         })
 
+         const aufgabenUpdate = {}
+
+         if(start && start !== aufgabe.start){
+            aufgabenUpdate.start = start
+         }
+
+         if(ende && ende !== aufgabe.ende){
+            aufgabenUpdate.ende = ende
+         }
+
+         if(status && Number(status) !== aufgabe.status){
+            aufgabenUpdate.status = Number(status)
+         }
+
+         if(helfer_id && Number(helfer_id) !== aufgabe.helfer_id){
+            aufgabenUpdate.helfer_id = Number(helfer_id)
+         }
+
+         if(aufgabentyp_id && Number(aufgabentyp_id) !== aufgabe.aufgabentyp_id){
+            aufgabenUpdate.aufgabentyp_id = Number(aufgabentyp_id)
+         }
+
+         if(((funk_id && aufgabe.funk_id) && Number(funk_id) !== aufgabe.funk_id) || funk_id && !aufgabe.funk_id){
+            aufgabenUpdate.funk_id = funk_id
+         }else if(!funk_id && aufgabe.funk_id){
+            aufgabenUpdate.funk_id = String()
+         }
+
+         console.log('Aufgabenupdate: ', aufgabenUpdate)
+
+         const result = await prisma.aufgaben.update({
+            where: {
+               id: Number(aufgabenid)
+            },
+            data: aufgabenUpdate
+         })
+
+         console.log(result)
+         res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1253,7 +1746,7 @@ app.route('/:sessiontoken/aufgaben/:aufgabenid')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1276,7 +1769,7 @@ app.route('/:sessiontoken/materialien')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1321,7 +1814,7 @@ app.route('/:sessiontoken/materialien')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1335,7 +1828,7 @@ app.route('/:sessiontoken/materialien/:materialienid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1347,7 +1840,7 @@ app.route('/:sessiontoken/materialien/:materialienid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1365,7 +1858,7 @@ app.route('/:sessiontoken/materialien/:materialienid')
 
       res.status(200)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1388,7 +1881,7 @@ app.route('/:sessiontoken/materialienausgabe')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1445,7 +1938,7 @@ app.route('/:sessiontoken/materialienausgabe')
 
          res.status(200)
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1459,7 +1952,7 @@ app.route('/:sessiontoken/materialienausgabe/:ausgabeid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1471,7 +1964,7 @@ app.route('/:sessiontoken/materialienausgabe/:ausgabeid')
    if(await isValidSessiontoken(sessiontoken)){
 
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1489,20 +1982,42 @@ app.route('/:sessiontoken/materialienausgabe/:ausgabeid')
 
       res.status(200)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
    }
 })
 
-app.route('/:sessiontoken/mitteilungen')
+app.route('/:sessiontoken/mitteilungen/benutzer/:helferid')
    .get(async (req, res) => {
-      const {sessiontoken} = req.params
+      const {sessiontoken, helferid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         const getPerms = await prisma.benutzer.findUnique({
+            where: {
+               id: Number(helferid)
+            }
+         })
+
+         const perms = []
+
+         for (let index = 0; index < getPerms.berechtigungen.length; index++) {
+            const element = getPerms.berechtigungen[index];
+            if(element === 1){
+               perms.push(index-1)
+            }
+         }
+         console.log('Perms: ', perms)
+
          const count = await prisma.mitteilungen.count()
-         const result = await prisma.mitteilungen.findMany()
+         const result = await prisma.mitteilungen.findMany({
+            where: {
+               empfaenger: {
+                  in: perms
+               }
+            }
+         })
 
          console.log(result)
 
@@ -1512,7 +2027,7 @@ app.route('/:sessiontoken/mitteilungen')
             data: result
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
@@ -1530,21 +2045,78 @@ app.route('/:sessiontoken/mitteilungen')
             }
          })
       }else{
-         res.status(404)
+         res.status(401)
          res.json({
             error: 'Invalid Sessiontoken'
          })
       }
    })
 
-app.route('/:sessiontoken/mitteilungen/:mitteilungsid')
+app.route('/:sessiontoken/mitteilungen/admin')
+.get(async (req, res) => {
+   const {sessiontoken} = req.params
+
+   if(await isValidSessiontoken(sessiontoken)){
+      const count = await prisma.mitteilungen.count()
+      const result = await prisma.mitteilungen.findMany({
+         orderBy: {
+            name: 'asc'
+         }
+      })
+
+      console.log(result)
+
+      res.status(200)
+      res.json({
+         count: count,
+         data: result
+      })
+   }else{
+      res.status(401)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+.post(async (req, res) => {
+   const {sessiontoken} = req.params
+   const {name, mitteilung, empfaenger} = req.body
+
+   console.log(req.body)
+
+   if(await isValidSessiontoken(sessiontoken) && name && mitteilung && empfaenger >= 0){
+      const result = await prisma.mitteilungen.create({
+         data: {
+            name: name,
+            mitteilung: mitteilung,
+            empfaenger: Number(empfaenger)
+         }
+      })
+   }else{
+      res.status(401)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
+})
+
+app.route('/:sessiontoken/mitteilungen/admin/:mitteilungsid')
 .get(async (req, res) => {
    const {sessiontoken, mitteilungsid} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
+      const result = await prisma.mitteilungen.findUnique({
+         where: {
+            id: Number(mitteilungsid)
+         }
+      })
 
+      console.log(result)
+
+      res.status(200)
+      res.json(result)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1552,11 +2124,41 @@ app.route('/:sessiontoken/mitteilungen/:mitteilungsid')
 })
 .put(async (req, res) => {
    const {sessiontoken, mitteilungsid} = req.params
+   const {name, mitteilungContent, empfaenger} = req.body
 
    if(await isValidSessiontoken(sessiontoken)){
+      const mitteilung = await prisma.mitteilungen.findUnique({
+         where: {
+            id: Number(mitteilungsid)
+         }
+      })
+      const mitteilungUpdate = {}
 
+      if(name && name.toLowerCase() !== mitteilung.name.toLowerCase()){
+         mitteilungUpdate.name = name
+      }
+
+      if(mitteilungContent && mitteilungContent.toLowerCase() !== mitteilung.mitteilung.toLowerCase()){
+         mitteilungUpdate.mitteilung = mitteilungContent
+      }
+      
+      if(empfaenger && Number(empfaenger) !== Number(mitteilung.empfaenger)){
+         mitteilungUpdate.empfaenger = Number(empfaenger)
+      }
+
+      console.log('Mitteilungsupdate: ', mitteilungUpdate)
+
+      const result = await prisma.mitteilungen.update({
+         where: {
+            id: Number(mitteilungsid)
+         },
+         data: mitteilungUpdate
+      })
+
+      console.log(result)
+      res.status(200)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1574,7 +2176,7 @@ app.route('/:sessiontoken/mitteilungen/:mitteilungsid')
 
       res.status(200)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
@@ -1610,7 +2212,7 @@ app.post('/benutzer/login', async (req, res) => {
 
    if(databaseRes != null){
       // Create session token
-      const sessiontoken = uuid.v4()
+      const sessiontoken = uuidv4()
 
       const createSession = await prisma.sessions.create({
          data: {
@@ -1651,30 +2253,51 @@ app.get('/:sessiontoken/benutzer/logout', async (req, res) => {
       res.status(200)
    }else{
       console.log('Invalid Sessiontoken')
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
    }
 })
 
-app.put('/:sessiontoken/benutzer/:id/:passwort', async (req, res) => {
-   const {sessiontoken, id, passwort} = req.params
+app.put('/:sessiontoken/benutzer/:id', async (req, res) => {
+   const {sessiontoken, id} = req.params
+   const {passwort} = req.body
 
    if(await isValidSessiontoken(sessiontoken)){
-      const result = await prisma.benutzer.update({
-         where: {
-            id: Number(id),
-         },
-         data: {
-            passwort: passwort,
-         },
-      })
+      if(passwort){
+         const result = await prisma.benutzer.update({
+            where: {
+               id: Number(id),
+            },
+            data: {
+               passwort: passwort,
+            },
+         })
+
+         console.log(result)
+      }else{
+         const helfer = await prisma.helfer.findUnique({
+            where: {
+               id: Number(id)
+            }
+         })
+
+         const result = await prisma.benutzer.update({
+            where: {
+               id: Number(id),
+            },
+            data: {
+               passwort: btoa(helfer.geburtstag),
+            },
+         })
+
+         console.log(result)
+      }
    
       res.status(200)
-      console.log(result)
    }else{
-      res.status(404)
+      res.status(401)
       res.json({
          error: 'Invalid Sessiontoken'
       })
