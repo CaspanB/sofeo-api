@@ -39,14 +39,14 @@ model Lehrer {
   vorname  String? @db.VarChar(25)
   nachname String  @db.VarChar(25)
   anrede String @db.VarChar()
-  stand Staende[]
+  staende Staende[]
 }
 
 model Klassen {
   kuerzel      String  @id @db.VarChar(6)
   klassenstufe Int
   klasse       String  @db.VarChar(4)
-  stand_id     String? @db.VarChar(4)
+  stand Staende[]
 }
 
 model Funkgeraete {
@@ -58,13 +58,14 @@ model Funkgeraete {
 model Aufgabentypen {
   id           Int        @id @default(autoincrement())
   name         String     @db.VarChar(25)
-  beschreibung String?    @db.VarChar(100)
+  beschreibung String?    @db.VarChar(1000)
   aufgaben     Aufgaben[]
 }
 
 model Staende {
   id                 Int                  @id @default(autoincrement())
-  klasse             String               @db.VarChar(6)
+  klassen_kuerzel String? @db.VarChar(6)
+  klasse             Klassen? @relation(fields: [klassen_kuerzel], references: [kuerzel])
   lehrer_kuerzel             String?              @db.VarChar(5)
   lehrer  Lehrer? @relation(fields: [lehrer_kuerzel], references: [kuerzel])
   name               String              @db.VarChar(50) @unique
@@ -125,6 +126,7 @@ model Materialienausgabe {
 
 model Mitteilungen {
   id         Int    @id @default(autoincrement())
-  mitteilung String @db.VarChar(100)
+  name String @db.VarChar(50)
+  mitteilung String @db.VarChar(1000)
   empfaenger Int
 }
