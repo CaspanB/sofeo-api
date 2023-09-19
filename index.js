@@ -41,32 +41,21 @@ const compareArrays = (a, b) => {
    // return JSON.stringify(a) === JSON.stringify(b);
 };
 
-const getSommerfestTag = (ferien) => {
-   if(ferien.length > 0){
-      const sommerferien = ferien.filter(function(holiday){
-         return holiday.name.includes('sommerferien') && holiday.year >= (new Date().getUTCFullYear())
-      })
-
-      let thisYearStart = new Date(sommerferien[0].start)
-      if(thisYearStart < new Date()){
-         thisYearStart = new Date(sommerferien[1].start)
-      }
-
-      if(thisYearStart.getUTCDay() === 0){
-         thisYearStart.setUTCDate(thisYearStart.getUTCDate() - 4)
-      }else{
-         thisYearStart.setUTCDate(thisYearStart.getUTCDate() - 2)
-      }
-
-      return thisYearStart
-   }
-}
-
 app.use(cors())
 app.use(express.json())
 //app.use(logger('combined'))
 
 app.listen(PORT, HOSTNAME, () => console.log(`Sofeo API Listening on Port ${PORT}`));
+
+app.get('/', async (req, res) => {
+   console.log('Get API Server Information')
+
+   res.json({
+      name: 'Sofeo API',
+      version: 'v1.0',
+      author: 'Hannah Brandt'
+   })
+})
 
 app.route('/:sessiontoken/benutzer')
    .get(async (req, res) => {{
@@ -132,7 +121,8 @@ app.route('/:sessiontoken/helfer')
                aufgaben: {
                   include: {
                      aufgabentyp: true,
-                     funkgeraet: true
+                     funkgeraet: true,
+                     helfer: true
                   },
                   orderBy: {
                      start: 'asc'
@@ -715,13 +705,12 @@ app.route('/:sessiontoken/funkgeraete')
    })
    .post(async (req, res) => {
       const {sessiontoken} = req.params
-      const {id, fest_id} = req.body
+      const {id} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && id){
          const result = await prisma.funkgeraete.create({
             data: {
-               id: id,
-               festid: fest_id
+               id: id
             }
          })
       }else{
@@ -746,7 +735,7 @@ app.route('/:sessiontoken/funkgeraete/:funkid')
       }
    })
    .put(async (req, res) => {
-      const {id, festid} = req.body
+      const {id} = req.body
       const {sessiontoken, funkid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
@@ -760,10 +749,6 @@ app.route('/:sessiontoken/funkgeraete/:funkid')
          
          if(id && funkgeraet.id !== id){
             funkgeraetUpdate.id = id
-         }
-
-         if(((festid && funkgeraet.festid) && (funkgeraet.festid !== festid)) || (festid && !funkgeraet.festid)){
-            funkgeraetUpdate.festid = festid
          }
          
          console.log('Funkgerätupdate: ', funkgeraetUpdate)
@@ -844,7 +829,7 @@ app.route('/:sessiontoken/aufgabentypen')
       const {name, beschreibung} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && name){
-         const result = await prisma.funkgeraete.create({
+         const result = await prisma.aufgabentypen.create({
             data: {
                name: name,
                beschreibung: beschreibung
@@ -917,6 +902,8 @@ app.route('/:sessiontoken/aufgabentypen/:typid')
    })
    .delete(async (req, res) => {
       const {sessiontoken, typid} = req.params
+
+      console.log(req)
 
       if(await isValidSessiontoken(sessiontoken)){
          const result = await prisma.aufgabentypen.delete({
@@ -1103,14 +1090,19 @@ app.route('/:sessiontoken/materialtypen')
    })
    .post(async (req, res) => {
       const {sessiontoken} = req.params
-      const {name, anzahl} = req.body
+      const {name, beschreibung} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && name){
+         const materialtyp = {
+            name: name
+         }
+
+         if(beschreibung){
+            materialtyp.beschreibung = beschreibung
+         }
+
          const result = await prisma.materialtypen.create({
-            data: {
-               name: name,
-               anzahl: Number(anzahl)
-            }
+            data: materialtyp
          })
          res.status(200)
       }else{
@@ -1136,9 +1128,38 @@ app.route('/:sessiontoken/materialtypen/:typid')
 })
 .put(async (req, res) => {
    const {sessiontoken, typid} = req.params
+   const {name, beschreibung} = req.body
 
    if(await isValidSessiontoken(sessiontoken)){
+      const materialtyp = await prisma.materialtypen.findUnique({
+         where: {
+            id: Number(typid)
+         }
+      })
 
+      const materialtypUpdate = {}
+
+      if(name && name.toLowerCase() !== materialtyp.name.toLowerCase()){
+         materialtypUpdate.name = name
+      }
+
+      if((beschreibung && materialtyp.beschreibung) && beschreibung !== materialtyp.beschreibung || beschreibung && !materialtyp.beschreibung){
+         materialtypUpdate.beschreibung = beschreibung
+      }else if(!beschreibung && materialtyp.beschreibung){
+         materialtypUpdate.beschreibung = String()
+      }
+
+      console.log('Materialtypupdate: ', materialtypUpdate)
+
+      const result = await prisma.materialtypen.update({
+         where: {
+            id: Number(typid)
+         },
+         data: materialtypUpdate
+      })
+
+      console.log(result)
+      res.status(200)
    }else{
       res.status(401)
       res.json({
@@ -1172,17 +1193,29 @@ app.route('/:sessiontoken/lager')
          const result = await prisma.lager.findMany({
             include: {
                materialienausgabe: {
-                  select: {
-                     id: true,
-                     stand_id: true,
-                     stand: true,
-                     lager_id: true,
+                  include: {
+                     stand: {
+                        include: {
+                           klasse: true,
+                           lehrer: true
+                        }
+                     },
                      lager: true,
-                     materialtyp_id: true,
-                     materialtyp: true,
-                     anzahl: true
+                     materialtyp: {
+                        include: {
+                           materialien: true
+                        }
+                     }
+                  }
+               },
+               materialien: {
+                  include: {
+                     materialtyp: true
                   }
                }
+            },
+            orderBy: {
+               name: 'asc'
             }
          })
 
@@ -1195,7 +1228,7 @@ app.route('/:sessiontoken/lager')
          })
       }else{
          res.status(401)
-         req.json({
+         res.json({
             error: 'Invalid Sessiontoken'
          })
       }
@@ -1212,10 +1245,10 @@ app.route('/:sessiontoken/lager')
             }
          })
 
-         req.status(200)
+         res.status(200)
       }else{
          res.status(401)
-         req.json({
+         res.json({
             error: 'Invalid Sessiontoken'
          })
       }
@@ -1236,9 +1269,40 @@ app.route('/:sessiontoken/lager/:lagerid')
 })
 .put(async (req, res) => {
    const {sessiontoken, lagerid} = req.params
+   const {name, postition} = req.body
 
    if(await isValidSessiontoken(sessiontoken)){
 
+      const lager = await prisma.lager.findUnique({
+         where: {
+            id: Number(lagerid)
+         }
+      })
+      
+      const lagerUpdate = {}
+      
+      if(name && lager.name.toLowerCase() !== name.toLowerCase()){
+         lagerUpdate.name = name
+      }
+
+      if(((postition && lager.position) && (lager.position !== postition)) || (postition && !lager.position)){
+         lagerUpdate.position = postition
+      }else if(!postition && lager.position){
+         lagerUpdate.position = String()
+      }
+      
+      console.log('Lagerupdate: ', lagerUpdate)
+      
+      const result = await prisma.lager.update({
+         where: {
+            id: Number(lagerid)
+         },
+         data: lagerUpdate
+      })
+
+      console.log(result)
+
+      res.status(200)
    }else{
       res.status(401)
       res.json({
@@ -1308,6 +1372,7 @@ app.route('/:sessiontoken/aufgaben')
       console.log(req.body)
 
       if(await isValidSessiontoken(sessiontoken) && start && ende && helfer_id && aufgabentyp_id){
+         console.log('/aufgaben')
          if(parent_id){
             const getParent = await prisma.aufgaben.findUnique({
                where: {
@@ -1369,18 +1434,28 @@ app.route('/:sessiontoken/aufgaben')
                console.log(result)
             }
          }else{
-            const result = await prisma.aufgaben.create({
-               data: {
-                  start: new Date(start),
-                  ende: new Date(ende),
-                  status: Number(status),
-                  helfer_id: Number(helfer_id),
-                  aufgabentyp_id: Number(aufgabentyp_id),
-                  funk_id: String(funk_id)
-               }
-            })
-
-            console.log(result)
+            if(funk_id){
+               const result = await prisma.aufgaben.create({
+                  data: {
+                     start: new Date(start),
+                     ende: new Date(ende),
+                     status: Number(status),
+                     helfer_id: Number(helfer_id),
+                     aufgabentyp_id: Number(aufgabentyp_id),
+                     funk_id: String(funk_id)
+                  }
+               })
+            }else{
+               const result = await prisma.aufgaben.create({
+                  data: {
+                     start: new Date(start),
+                     ende: new Date(ende),
+                     status: Number(status),
+                     helfer_id: Number(helfer_id),
+                     aufgabentyp_id: Number(aufgabentyp_id)
+                  }
+               })
+            }
          }
 
          res.status(200)
@@ -1398,6 +1473,7 @@ app.route('/:sessiontoken/aufgaben/checkin/:aufgabenid')
 
       if(await isValidSessiontoken(sessiontoken)){
          // return status
+         console.log('/aufgaben/checkin/aufgabenid')
          const result = await prisma.aufgaben.findUnique({
             where: {
                id: Number(aufgabenid)
@@ -1480,64 +1556,11 @@ app.get('/:sessiontoken/aufgaben/alte', async (req, res) => {
    }
 })
 
-app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
-   const {sessiontoken} = req.params
+app.get('/:sessiontoken/aufgaben/neue/:tag', async (req, res) => {
+   const {sessiontoken, tag} = req.params
 
    if(await isValidSessiontoken(sessiontoken)){
-      /* 
-      // Non-active tasks starting in the next 10 Minutes
-      const now = new Date() //today now
-      const loadUntilDate = new Date(addMinutes(new Date(), 30))
-      const loadFromDate = new Date(addMinutes(new Date(), -5))
-      // console.log(loadUntilDate)
-      // console.log(loadFromDate)
-
-      const request = await prisma.aufgaben.findMany({
-         where: {
-            status: {
-                  equals: 0
-            }
-         },
-         include: {
-            helfer: {
-               select: {
-                  vorname: true,
-                  nachname: true,
-                  rufname: true
-               }
-            },
-            aufgabentyp: {
-               select: {
-                  name: true
-               }
-            }
-         },
-         orderBy: {
-            start: 'asc'
-         }
-      })
-
-      console.log(request)
-
-      const result = []
-
-      for(const [key, value] of Object.entries(request)){
-         if(value.start < loadUntilDate && value.start > loadFromDate){
-            result.push(value)
-         }
-      }
-
-      console.log('Neue Aufgaben', result)
-
-      res.status(200)
-      res.json({
-         data: result
-      })
-      */
-      const ferienReq = await fetch(`https://ferien-api.de/api/v1/holidays/SN`)
-      const ferien = await ferienReq.json()
-      
-      const sommerfesttag = getSommerfestTag(ferien)
+     let sommerfesttag = new Date(tag);
 
       // Non-active tasks starting in the next 10 Minutes
       const now = new Date() //today now
@@ -1567,6 +1590,7 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
       })
       
       console.log(request)
+      console.log('Sommerfesttag: ', sommerfesttag)
 
       const result = []
       
@@ -1581,7 +1605,7 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
                result.push(value)
             }
          }
-      }else{
+      }else if(request.length > 0){
          const start = new Date(request[0].start)
          start.setMilliseconds(0)
          start.setSeconds(0)
@@ -1611,39 +1635,15 @@ app.get('/:sessiontoken/aufgaben/neue', async (req, res) => {
    }
 })
 
-app.get('/:sessiontoken/aufgaben/funkgeraete', async (req, res) => {
-   const {sessiontoken} = req.params
-
-   if(isValidSessiontoken(sessiontoken)){
-      // Get all helpers with id and with their tasks
-      const result = await prisma.funkgeraete.findMany({
-         include: {
-            aufgaben: true
-         }
-      })
-
-      console.log(result)
-
-      res.status(200)
-      res.json({
-         data: result
-      })
-   }else{
-      res.status(401)
-      res.json({
-         error: 'Invalid Sessiontoken'
-      })
-   }
-})
-
 app.route('/:sessiontoken/aufgaben/:aufgabenid')
    .get(async (req, res) => {
       const {sessiontoken, aufgabenid} = req.params
 
       if(await isValidSessiontoken(sessiontoken)){
+         console.log('/aufgaben/aufgabenid, get')
          const result = await prisma.aufgaben.findUnique({
             where: {
-               id: aufgabenid
+               id: Number(aufgabenid)
             }
          })
 
@@ -1665,6 +1665,7 @@ app.route('/:sessiontoken/aufgaben/:aufgabenid')
       const {start, ende, status, helfer_id, aufgabentyp_id, funk_id} = req.body
 
       if(await isValidSessiontoken(sessiontoken)){
+         console.log('/aufgaben/aufgabenid')
          const aufgabe = await prisma.aufgaben.findUnique({
             where: {
                id: Number(aufgabenid)
@@ -1693,10 +1694,8 @@ app.route('/:sessiontoken/aufgaben/:aufgabenid')
             aufgabenUpdate.aufgabentyp_id = Number(aufgabentyp_id)
          }
 
-         if(((funk_id && aufgabe.funk_id) && Number(funk_id) !== aufgabe.funk_id) || funk_id && !aufgabe.funk_id){
+         if(((funk_id && aufgabe.funk_id) && funk_id !== aufgabe.funk_id) || funk_id && !aufgabe.funk_id){
             aufgabenUpdate.funk_id = funk_id
-         }else if(!funk_id && aufgabe.funk_id){
-            aufgabenUpdate.funk_id = String()
          }
 
          console.log('Aufgabenupdate: ', aufgabenUpdate)
@@ -1759,7 +1758,12 @@ app.route('/:sessiontoken/materialien')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.materialien.count()
-         const result = await prisma.materialien.findMany()
+         const result = await prisma.materialien.findMany({
+            include: {
+               lager: true,
+               materialtyp: true
+            }
+         })
 
          console.log(result)
 
@@ -1780,37 +1784,22 @@ app.route('/:sessiontoken/materialien')
       const {lager_id, materialtyp_id, anzahl} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && lager_id && materialtyp_id){
+         const material = {
+            lager_id: Number(lager_id),
+            materialtyp_id: Number(materialtyp_id)
+         }
+
+         if(anzahl){
+            material.anzahl = Number(anzahl)
+         }else{
+            material.anzahl = 0
+         }
+
          const result = await prisma.materialien.create({
-            data: {
-               lager_id: Number(lager_id),
-               materialtyp_id: Number(materialtyp_id),
-               anzahl: Number(anzahl)
-            }
+            data: material
          })
 
-         const material_id = result.id
-
-         const connectLager = await prisma.lager.update({
-            where: {
-               id: Number(lager_id)
-            },
-            data: {
-               materialien: {
-                  connect: {id: Number(material_id)}
-               }
-            }
-         })
-
-         const connectMaterialtyp = await prisma.materialtypen.update({
-            where: {
-               id: Number(materialtyp_id)
-            },
-            data: {
-               materialien: {
-                  connect: {id: Number(material_id)}
-               }
-            }
-         })
+         console.log(result)
 
          res.status(200)
       }else{
@@ -1836,9 +1825,47 @@ app.route('/:sessiontoken/materialien/:materialienid')
 })
 .put(async (req, res) => {
    const {sessiontoken, materialienid} = req.params
+   const {lager_id, materialtyp_id, anzahl} = req.body
 
    if(await isValidSessiontoken(sessiontoken)){
+      const material = await prisma.materialien.findUnique({
+         where: {
+            id: Number(materialienid)
+         }
+      })
 
+      const materialUpdate = {}
+
+      if(lager_id && Number(lager_id) !== Number(material.lager_id)){
+         materialUpdate.lager_id = Number(lager_id)
+      }
+
+      if(materialtyp_id && Number(materialtyp_id) !== Number(material.materialtyp_id)){
+         materialUpdate.materialtyp_id = Number(materialtyp_id)
+      }
+
+      if((anzahl && material.anzahl && Number(anzahl) !== Number(material.anzahl)) || (anzahl && !material.anzahl)){
+         materialUpdate.anzahl = Number(anzahl)
+      }else if(!anzahl && material.anzahl){
+         materialUpdate.anzahl = 0
+      }
+
+      console.log('Materialupdate: ', materialUpdate)
+
+      if(Object.keys(materialUpdate).length > 0){
+         const result = await prisma.materialien.update({
+            where: {
+               id: Number(materialienid)
+            },
+            data: materialUpdate
+         })
+
+         console.log(result)
+
+         res.status(200)
+      }else{
+         res.status(400)
+      }
    }else{
       res.status(401)
       res.json({
@@ -1871,7 +1898,18 @@ app.route('/:sessiontoken/materialienausgabe')
 
       if(await isValidSessiontoken(sessiontoken)){
          const count = await prisma.materialienausgabe.count()
-         const result = await prisma.materialienausgabe.findMany()
+         const result = await prisma.materialienausgabe.findMany({
+            include: {
+               lager: true,
+               materialtyp: true,
+               stand: {
+                  include: {
+                     klasse: true,
+                     lehrer: true
+                  }
+               }
+            }
+         })
 
          console.log(result)
 
@@ -1892,49 +1930,23 @@ app.route('/:sessiontoken/materialienausgabe')
       const {stand_id, lager_id, materialtyp_id, anzahl} = req.body
 
       if(await isValidSessiontoken(sessiontoken) && stand_id && lager_id && materialtyp_id){
+         const materialausgabe = {
+            stand_id: Number(stand_id),
+            lager_id: Number(lager_id),
+            materialtyp_id: Number(materialtyp_id)
+         }
+
+         if(anzahl){
+            materialausgabe.anzahl = Number(anzahl)
+         }else{
+            materialausgabe.anzahl = 0
+         }
+
          const result = await prisma.materialienausgabe.create({
-            data: {
-               stand_id: Number(stand_id),
-               lager_id: Number(lager_id),
-               materialtyp_id: Number(materialtyp_id),
-               anzahl: Number(anzahl)
-            }
+            data: materialausgabe
          })
 
-         const materialienausgabe_id = result.id
-
-         const connectStand = await prisma.staende.update({
-            where: {
-               id: Number(stand_id)
-            },
-            data: {
-               materialienausgabe: {
-                  connect: {id: Number(materialienausgabe_id)}
-               }
-            }
-         })
-
-         const connectLager = await prisma.lager.update({
-            where: {
-               id: Number(lager_id)
-            },
-            data: {
-               materialienausgabe: {
-                  connect: {id: Number(materialienausgabe_id)}
-               }
-            }
-         })
-
-         const connectMaterialtyp = await prisma.materialtypen.update({
-            where: {
-               id: Number(materialtyp_id)
-            },
-            data: {
-               materialienausgabe: {
-                  connect: {id: Number(materialienausgabe_id)}
-               }
-            }
-         })
+         console.log(result)
 
          res.status(200)
       }else{
@@ -1960,9 +1972,50 @@ app.route('/:sessiontoken/materialienausgabe/:ausgabeid')
 })
 .put(async (req, res) => {
    const {sessiontoken, ausgabeid} = req.params
+   const {stand_id, lager_id, materialtyp_id, anzahl} = req.body
 
    if(await isValidSessiontoken(sessiontoken)){
+      const materialausgabe = await prisma.materialienausgabe.findUnique({
+         where: {
+            id: Number(ausgabeid)
+         }
+      })
 
+      const materialausgabeUpdate = {}
+
+      if(lager_id && Number(lager_id) !== Number(materialausgabe.lager_id)){
+         materialUpdate.lager_id = Number(lager_id)
+      }
+
+      if(materialtyp_id && Number(materialtyp_id) !== Number(materialausgabe.materialtyp_id)){
+         materialUpdate.materialtyp_id = Number(materialtyp_id)
+      }
+
+      if(stand_id && Number(stand_id) !== Number(materialausgabe.materialtyp_id)){
+         materialausgabeUpdate.stand_id = Number(stand_id)
+      }
+
+      if((anzahl && materialausgabe.anzahl && Number(anzahl) !== Number(materialausgabe.anzahl)) || (anzahl && !materialausgabe.anzahl)){
+         materialUpdate.anzahl = Number(anzahl)
+      }else if(!anzahl && materialausgabe.anzahl){
+         materialUpdate.anzahl = 0
+      }
+
+      console.log('Materialienausgabeupdate: ', materialausgabeUpdate)
+
+      if(Object.keys(materialausgabeUpdate).length > 0){
+         const result = await prisma.materialienausgabe.update({
+            where: {
+               id: Number(ausgabeid)
+            },
+            data: materialausgabeUpdate
+         })
+
+         console.log(result)
+         res.status(200)
+      }else{
+         res.status(400)
+      }
    }else{
       res.status(401)
       res.json({
@@ -2183,17 +2236,6 @@ app.route('/:sessiontoken/mitteilungen/admin/:mitteilungsid')
    }
 })
 
-app.get('/', async (req, res) => {
-   console.log('Get API Server Information')
-
-   res.json({
-      name: 'Sofeo API',
-      version: 'v1.0',
-      author: 'Hannah Brandt'
-   })
-})
-
-
 app.post('/benutzer/login', async (req, res) => {
    const {loginname, passwort} = req.body
    //passwort base-64 codiert
@@ -2260,32 +2302,46 @@ app.get('/:sessiontoken/benutzer/logout', async (req, res) => {
    }
 })
 
-app.put('/:sessiontoken/benutzer/:id', async (req, res) => {
-   const {sessiontoken, id} = req.params
-   const {passwort} = req.body
+app.put('/:sessiontoken/benutzer/:userid', async (req, res) => {
+   const {sessiontoken, userid} = req.params
+   const {altespasswort, neuespasswort} = req.body
 
    if(await isValidSessiontoken(sessiontoken)){
-      if(passwort){
-         const result = await prisma.benutzer.update({
+      if(altespasswort, neuespasswort){
+         const checkPassword = await prisma.benutzer.findFirst({
             where: {
-               id: Number(id),
-            },
-            data: {
-               passwort: passwort,
-            },
+               id: Number(userid),
+               passwort: altespasswort
+            }
          })
 
-         console.log(result)
+         if(checkPassword){
+            const result = await prisma.benutzer.update({
+               where: {
+                  id: Number(userid),
+               },
+               data: {
+                  passwort: neuespasswort,
+               },
+            })
+   
+            console.log(result)
+         }else{
+            res.status(400)
+            res.json({
+               error: 'Invalid old password'
+            })
+         }
       }else{
          const helfer = await prisma.helfer.findUnique({
             where: {
-               id: Number(id)
+               id: Number(userid)
             }
          })
 
          const result = await prisma.benutzer.update({
             where: {
-               id: Number(id),
+               id: Number(userid),
             },
             data: {
                passwort: btoa(helfer.geburtstag),
@@ -2302,5 +2358,42 @@ app.put('/:sessiontoken/benutzer/:id', async (req, res) => {
          error: 'Invalid Sessiontoken'
       })
    }
+})
 
+app.get('/einstellungen', async (req, res) => {
+   const count = await prisma.einstellungen.count()
+   const result = await prisma.einstellungen.findMany()
+
+   console.log(result)
+
+   res.status(200)
+   res.json({
+      count: count,
+      data: result
+   })
+})
+
+app.put('/:sessiontoken/einstellungen/:einstellungid', async (req, res) => {
+   const {sessiontoken, einstellungid} = req.params
+   const {value} = req.body
+
+   if(await isValidSessiontoken(sessiontoken) && value){
+      const result = await prisma.einstellungen.update({
+         where: {
+            id: Number(einstellungid)
+         },
+         data: {
+            value: value
+         }
+      })
+
+      console.log(result)
+
+      res.status(200)
+   }else{
+      res.status(401)
+      res.json({
+         error: 'Invalid Sessiontoken'
+      })
+   }
 })
