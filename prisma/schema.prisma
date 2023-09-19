@@ -51,7 +51,6 @@ model Klassen {
 
 model Funkgeraete {
   id       String     @id @db.VarChar(15)
-  festid   String?    @db.VarChar(5)
   aufgaben Aufgaben[]
 }
 
@@ -76,14 +75,14 @@ model Staende {
 model Materialtypen {
   id                 Int                  @id @default(autoincrement())
   name               String               @db.VarChar(25)
-  anzahl             Int?
+  beschreibung String? @db.VarChar(100)
   materialien        Materialien[]
   materialienausgabe Materialienausgabe[]
 }
 
 model Lager {
   id                 Int                  @id @default(autoincrement())
-  name               String               @db.VarChar(25)
+  name               String               @db.VarChar(25) @unique
   position           String?              @db.VarChar(50)
   materialien        Materialien[]
   materialienausgabe Materialienausgabe[]
@@ -129,4 +128,11 @@ model Mitteilungen {
   name String @db.VarChar(50)
   mitteilung String @db.VarChar(1000)
   empfaenger Int
+}
+
+model Einstellungen {
+  id Int @id @default(autoincrement())
+  name String @db.VarChar(50) @unique
+  value String @db.VarChar(200)
+  type Int
 }
